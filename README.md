@@ -18,14 +18,13 @@ Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar P
   - [Before you start](#before-you-start)
   - [Part A — One-time install](#part-a--one-time-install)
   - [Part B — Verify in the browser (recommended)](#part-b--verify-in-the-browser-recommended)
-  - [Part C — Verify from the command line (no browser)](#part-c--verify-from-the-command-line-no-browser)
+  - [Part C — CLI smoke test (optional)](#part-c--cli-smoke-test-optional)
   - [What “valid” means](#what-valid-means)
   - [Troubleshooting](#troubleshooting)
   - [Usage flow (diagram)](#usage-flow-diagram)
 - [How validation works](#how-validation-works)
   - [Checks performed (same family as Acrobat)](#checks-performed-same-family-as-acrobat)
 - [Acrobat comparison](#acrobat-comparison)
-- [CLI (optional)](#cli-optional)
 - [Stamp configuration](#stamp-configuration)
 - [Project layout](#project-layout)
 - [Security & privacy](#security--privacy)
@@ -108,8 +107,9 @@ All commands assume you have already cloned the repo and are inside the `eaadhaa
 | **One-time setup** | `chmod +x setup.sh && ./setup.sh` | `chmod +x setup.sh && ./setup.sh` | `setup.bat` |
 | **Start viewer** | `./everify-app` | `./everify-app` | `everify-app.bat` |
 | **Open UI** | http://127.0.0.1:8765/ | http://127.0.0.1:8765/ | http://127.0.0.1:8765/ |
-| **CLI verify** | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar.pdf -p PASSWORD` | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar.pdf -p PASSWORD` | `.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar.pdf -p PASSWORD` |
 | **Stop server** | `Ctrl+C` in the terminal running the viewer | `Ctrl+C` | `Ctrl+C` in the Command Prompt / PowerShell window |
+
+> **Optional:** CLI smoke test — see [Part C](#part-c--cli-smoke-test-optional).
 
 ### macOS — full copy-paste
 
@@ -118,12 +118,6 @@ git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
 cd eaadhaar-pdf-signature-verifier
 chmod +x setup.sh && ./setup.sh
 ./everify-app
-```
-
-CLI (optional):
-
-```bash
-.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD
 ```
 
 ### Linux — full copy-paste
@@ -135,12 +129,6 @@ chmod +x setup.sh && ./setup.sh
 ./everify-app
 ```
 
-CLI (optional):
-
-```bash
-.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD
-```
-
 ### Windows — full copy-paste
 
 Command Prompt or PowerShell:
@@ -150,12 +138,6 @@ git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
 cd eaadhaar-pdf-signature-verifier
 setup.bat
 everify-app.bat
-```
-
-CLI (optional):
-
-```bat
-.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar_xxxx.pdf -p YOUR_PASSWORD
 ```
 
 > **Windows note:** Use `python` (not `python3`). If `python` is not found, install Python 3.10+ from [python.org](https://www.python.org/downloads/) and tick **“Add python.exe to PATH”** during setup.
@@ -223,17 +205,14 @@ Steps **2–10** are the same on every platform (browser UI). Only **step 1** (s
 
 ---
 
-### Part C — Verify from the command line (no browser)
+### Part C — CLI smoke test *(optional)*
 
-Complete **Part A** once, then run:
+> **Optional.** Quick terminal check — same cryptographic validation as Part B, without the browser or green-tick UI. For normal use, stick with [Part B](#part-b--verify-in-the-browser-recommended).
 
-| Platform | Command |
-|----------|---------|
-| **macOS** | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD` |
-| **Linux** | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD` |
-| **Windows** | `.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar_xxxx.pdf -p YOUR_PASSWORD` |
+**macOS / Linux:** `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD`  
+**Windows:** `.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar_xxxx.pdf -p YOUR_PASSWORD`
 
-A successful run ends with **`Bottom line: VALID`**.
+Success ends with **`Bottom line: VALID`**.
 
 ---
 
@@ -340,24 +319,6 @@ Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.h
 | Install size / cost | Large, often subscription | Small Python app, MIT license |
 | Runs offline | Yes | Yes (localhost only) |
 | UIDAI authentication API | No | No |
-
----
-
-## CLI (optional)
-
-Same validation as the browser, without the green-tick UI. See **Part C** and [Platform commands](#platform-commands).
-
-**macOS / Linux**
-
-```bash
-.venv/bin/python verify_aadhaar.py /path/to/eaadhaar.pdf -p YOUR_PASSWORD
-```
-
-**Windows**
-
-```bat
-.venv\Scripts\python verify_aadhaar.py C:\path\to\eaadhaar.pdf -p YOUR_PASSWORD
-```
 
 ---
 
