@@ -221,7 +221,7 @@ Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.h
 
 ## CLI (optional)
 
-Validate without the web UI:
+Same validation as the browser, without the green-tick UI. See **Part C** above.
 
 ```bash
 .venv/bin/python verify_aadhaar.py /path/to/eaadhaar.pdf -p YOUR_PASSWORD
