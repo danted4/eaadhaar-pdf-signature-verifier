@@ -6,6 +6,33 @@ Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar P
 
 > **Keywords:** e-Aadhaar, Aadhaar, Aadhar, UIDAI, PDF signature, digital signature, PKCS#7, pyHanko, CCA India, India PKI, Acrobat alternative, green tick, offline verification.
 
+## Table of contents
+
+- [Why this exists](#why-this-exists)
+- [Quick start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [One-time setup](#one-time-setup)
+  - [Run the viewer](#run-the-viewer)
+- [Platform commands](#platform-commands)
+- [How to verify your e-Aadhaar (step by step)](#how-to-verify-your-e-aadhaar-step-by-step)
+  - [Before you start](#before-you-start)
+  - [Part A — One-time install](#part-a--one-time-install)
+  - [Part B — Verify in the browser (recommended)](#part-b--verify-in-the-browser-recommended)
+  - [Part C — Verify from the command line (no browser)](#part-c--verify-from-the-command-line-no-browser)
+  - [What “valid” means](#what-valid-means)
+  - [Troubleshooting](#troubleshooting)
+  - [Usage flow (diagram)](#usage-flow-diagram)
+- [How validation works](#how-validation-works)
+  - [Checks performed (same family as Acrobat)](#checks-performed-same-family-as-acrobat)
+- [Acrobat comparison](#acrobat-comparison)
+- [CLI (optional)](#cli-optional)
+- [Stamp configuration](#stamp-configuration)
+- [Project layout](#project-layout)
+- [Security & privacy](#security--privacy)
+- [Disclaimers](#disclaimers)
+- [Contributing](#contributing)
+- [License](#license)
+
 ---
 
 ## Why this exists
