@@ -69,6 +69,70 @@ Open **http://127.0.0.1:8765/** in your browser. Your terminal should show `eVer
 
 ---
 
+## Platform commands
+
+All commands assume you have already cloned the repo and are inside the `everify` folder (`cd everify`).
+
+| Task | macOS | Linux | Windows |
+|------|-------|-------|---------|
+| **Check Python** | `python3 --version` | `python3 --version` | `python --version` |
+| **One-time setup** | `chmod +x setup.sh && ./setup.sh` | `chmod +x setup.sh && ./setup.sh` | `setup.bat` |
+| **Start viewer** | `./everify-app` | `./everify-app` | `everify-app.bat` |
+| **Open UI** | http://127.0.0.1:8765/ | http://127.0.0.1:8765/ | http://127.0.0.1:8765/ |
+| **CLI verify** | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar.pdf -p PASSWORD` | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar.pdf -p PASSWORD` | `.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar.pdf -p PASSWORD` |
+| **Stop server** | `Ctrl+C` in the terminal running the viewer | `Ctrl+C` | `Ctrl+C` in the Command Prompt / PowerShell window |
+
+### macOS — full copy-paste
+
+```bash
+git clone https://github.com/danted4/everify.git
+cd everify
+chmod +x setup.sh && ./setup.sh
+./everify-app
+```
+
+CLI (optional):
+
+```bash
+.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD
+```
+
+### Linux — full copy-paste
+
+```bash
+git clone https://github.com/danted4/everify.git
+cd everify
+chmod +x setup.sh && ./setup.sh
+./everify-app
+```
+
+CLI (optional):
+
+```bash
+.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD
+```
+
+### Windows — full copy-paste
+
+Command Prompt or PowerShell:
+
+```bat
+git clone https://github.com/danted4/everify.git
+cd everify
+setup.bat
+everify-app.bat
+```
+
+CLI (optional):
+
+```bat
+.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar_xxxx.pdf -p YOUR_PASSWORD
+```
+
+> **Windows note:** Use `python` (not `python3`). If `python` is not found, install Python 3.10+ from [python.org](https://www.python.org/downloads/) and tick **“Add python.exe to PATH”** during setup.
+
+---
+
 ## How to verify your e-Aadhaar (step by step)
 
 ### Before you start
@@ -111,9 +175,11 @@ If setup fails, ensure `python --version` (Windows) or `python3 --version` (macO
 
 ### Part B — Verify in the browser (recommended)
 
+Steps **2–10** are the same on every platform (browser UI). Only **step 1** (start the server) differs — see [Platform commands](#platform-commands).
+
 | Step | What to do | What you should see |
 |------|------------|---------------------|
-| **1** | In the `everify` folder, run **`./everify-app`** (macOS/Linux) or **`everify-app.bat`** (Windows) | Terminal prints the local URL |
+| **1** | Start the viewer (see platform table above) | Terminal prints `eVerify viewer at http://127.0.0.1:8765/` |
 | **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | eVerify upload screen |
 | **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears below the button |
 | **4** | Type your **PDF password** in the password field | — |
@@ -122,7 +188,7 @@ If setup fails, ensure `python --version` (Windows) or `python3 --version` (macO
 | **7** | Read the popup (signer, signing time, CCA trust chain, how validation works) | UIDAI signer, **CCA India 2022** trust anchor, integrity checks |
 | **8** | If valid → click **OK**. If invalid → click **Close** | Valid: blue bar + green **“Signature valid”** tick on the document |
 | **9** | (Optional) Click **Print** for a paper copy | Print uses the on-screen view with the green tick overlay |
-| **10** | Click **Open another** to verify a different PDF, or press `Ctrl+C` in the terminal to stop the server | — |
+| **10** | Stop the server with `Ctrl+C`, or click **Open another** to verify a different PDF | — |
 
 **Important:** The green tick is drawn **on screen only** for preview/print. Your original PDF file on disk is **never modified**.
 
@@ -130,18 +196,15 @@ If setup fails, ensure `python --version` (Windows) or `python3 --version` (macO
 
 ### Part C — Verify from the command line (no browser)
 
-| Step | What to do |
-|------|------------|
-| **1** | Complete **Part A** (setup) once |
-| **2** | Run (macOS/Linux): `.venv/bin/python verify_aadhaar.py /path/to/your-eaadhaar.pdf -p YOUR_PASSWORD` |
-| | Or (Windows): `.venv\Scripts\python verify_aadhaar.py C:\path\to\your-eaadhaar.pdf -p YOUR_PASSWORD` |
-| **3** | Read the output | `Bottom line: VALID` means the signature checks passed |
+Complete **Part A** once, then run:
 
-Example:
+| Platform | Command |
+|----------|---------|
+| **macOS** | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD` |
+| **Linux** | `.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p YOUR_PASSWORD` |
+| **Windows** | `.venv\Scripts\python verify_aadhaar.py C:\Users\You\Downloads\EAadhaar_xxxx.pdf -p YOUR_PASSWORD` |
 
-```bash
-.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p NAME1990
-```
+A successful run ends with **`Bottom line: VALID`**.
 
 ---
 
@@ -157,13 +220,14 @@ This is the same **kind** of check Adobe Acrobat performs for “Signature valid
 
 ### Troubleshooting
 
-| Problem | Try this |
-|---------|----------|
-| `Cannot reach the eVerify server` | Run `./everify-app` first; keep that terminal open |
-| `PDF is password-protected` / wrong password | Use the password from UIDAI download, not your Aadhaar number |
-| `No digital signature found` | File may not be a signed e-Aadhaar PDF |
-| Preview shows `?` but won’t turn green | Click directly on the signature box; check popup for **INVALID** details |
-| macOS Preview shows `?` | Expected — Preview doesn’t validate Indian PKI; use eVerify instead |
+| Problem | macOS / Linux | Windows |
+|---------|---------------|---------|
+| `Cannot reach the eVerify server` | Run `./everify-app` first | Run `everify-app.bat` first |
+| `python3` / `python` not found | Install Python 3.10+; use `python3` | Install from python.org; enable **Add to PATH**; use `python` |
+| `PDF is password-protected` / wrong password | Use UIDAI download password, not Aadhaar number | Same |
+| `No digital signature found` | File may not be a signed e-Aadhaar PDF | Same |
+| Preview shows `?` but won’t turn green | Click the signature box; read popup for **INVALID** | Same |
+| macOS Preview shows `?` | Expected — use eVerify instead | N/A |
 
 ---
 
@@ -252,10 +316,18 @@ Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.h
 
 ## CLI (optional)
 
-Same validation as the browser, without the green-tick UI. See **Part C** above.
+Same validation as the browser, without the green-tick UI. See **Part C** and [Platform commands](#platform-commands).
+
+**macOS / Linux**
 
 ```bash
 .venv/bin/python verify_aadhaar.py /path/to/eaadhaar.pdf -p YOUR_PASSWORD
+```
+
+**Windows**
+
+```bat
+.venv\Scripts\python verify_aadhaar.py C:\path\to\eaadhaar.pdf -p YOUR_PASSWORD
 ```
 
 ---

@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - High-DPI rendering for sharp preview and print
 - CLI verifier: `verify_aadhaar.py`
 - One-shot setup: `setup.sh` (macOS/Linux) and `setup.bat` (Windows)
-- Launch scripts: `everify-app` and `everify-app.bat`
+- Launch scripts: `everify-app` / `everify-app.bat`
+- Platform setup docs in README
 - Step-by-step README with mermaid diagrams and disclaimers
 - Reference stamp config: `stamp-config.default.json`
 
