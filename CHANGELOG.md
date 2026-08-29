@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Server binds to `127.0.0.1` only; no cloud upload
 - In-memory sessions expire after 30 minutes
 
+### Fixed
+
+- Incorrect PDF password now returns a clear error instead of crashing the preview server
+- Fixed blank screen after clicking OK on the verification popup
+- Improved print output with background 600 DPI rendering while keeping screen preview responsive
+
 ### Removed
 
 - Legacy `everify.py` monolithic entry point (use `./everify-app` instead)

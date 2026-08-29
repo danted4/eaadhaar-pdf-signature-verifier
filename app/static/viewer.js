@@ -63,6 +63,10 @@ const STAMP_CONFIG = {
 const DISPLAY_SCALE = 2;
 const RENDER_SCALE = () =>
   Math.min(6, Math.max(4, Math.round(window.devicePixelRatio * 2)));
+const PRINT_RENDER_SCALE = 600 / 72;
+
+let printBuildToken = 0;
+const printStoreEl = () => document.getElementById("print-store");
 
 const form = document.getElementById("form");
 const errorEl = document.getElementById("error");
@@ -171,7 +175,54 @@ function resetApp() {
   app.pdfDoc = null;
   app.sheets = [];
   app.pendingValidation = null;
+  clearPrintStore();
   hideValidationModal();
+}
+
+function clearPrintStore() {
+  printBuildToken += 1;
+  printStoreEl()?.replaceChildren();
+}
+
+function schedulePrintStore() {
+  printBuildToken += 1;
+  const token = printBuildToken;
+  const run = () => {
+    buildPrintStore(token).catch(() => {});
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(run, { timeout: 3000 });
+  } else {
+    setTimeout(run, 300);
+  }
+}
+
+async function buildPrintStore(token) {
+  const store = printStoreEl();
+  if (!store || !app.pdfDoc || !app.validated || token !== printBuildToken) return;
+  store.replaceChildren();
+
+  for (const sheet of app.sheets) {
+    if (token !== printBuildToken) return;
+    const viewport = sheet.page.getViewport({ scale: PRINT_RENDER_SCALE });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d");
+    await sheet.page.render({ canvasContext: ctx, viewport }).promise;
+
+    if (app.valid) {
+      for (const widget of app.widgets) {
+        if (widget.pageIndex !== sheet.pageIndex) continue;
+        drawValidityMark(ctx, widget, viewport, true);
+      }
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "sheet";
+    wrap.appendChild(canvas);
+    store.appendChild(wrap);
+  }
 }
 
 function updateDocbar() {
@@ -436,8 +487,13 @@ async function completeValidation() {
   app.pendingValidation = null;
   hideValidationModal();
   updateDocbar();
-  if (app.valid) {
-    await redrawAllSheets();
+  try {
+    if (app.valid) {
+      await redrawAllSheets();
+      schedulePrintStore();
+    }
+  } catch (err) {
+    showError(err);
   }
 }
 

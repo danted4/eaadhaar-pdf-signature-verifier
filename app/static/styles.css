@@ -140,6 +140,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
 }
 .sheet canvas { display: block; }
+#print-store { display: none; }
 
 .modal {
   position: fixed;
@@ -273,11 +274,22 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 @media print {
   body { background: #fff; }
   .chrome, .panel, .docbar, .modal { display: none !important; }
-  .pages { padding: 0; gap: 0; }
+  #workspace[hidden] { display: block !important; }
+  #workspace .pages { padding: 0; gap: 0; }
+  body:has(#print-store:not(:empty)) #workspace .pages { display: none !important; }
+  #print-store:not(:empty) {
+    display: block !important;
+  }
   .sheet {
     box-shadow: none;
     page-break-after: always;
     break-after: page;
+  }
+  #print-store .sheet canvas,
+  #workspace .pages .sheet canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
   }
   .sheet:last-child { page-break-after: auto; }
 }
