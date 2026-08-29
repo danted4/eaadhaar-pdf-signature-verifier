@@ -154,8 +154,80 @@ document.getElementById("again").addEventListener("click", () => {
 });
 
 printBtn.addEventListener("click", () => {
-  if (app.validated) window.print();
+  if (app.validated) printDocument();
 });
+
+function printSourceCanvases() {
+  const store = printStoreEl();
+  if (store?.children.length) {
+    return [...store.querySelectorAll("canvas")];
+  }
+  return [...pagesEl.querySelectorAll("canvas")];
+}
+
+function printDocument() {
+  const canvases = printSourceCanvases();
+  if (!canvases.length) return;
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute(
+    "style",
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none",
+  );
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = win.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>
+<style>
+@page { margin: 0; size: auto; }
+html, body { margin: 0; padding: 0; background: #fff; }
+img { width: 100%; height: auto; display: block; page-break-after: always; }
+img:last-child { page-break-after: auto; }
+</style></head><body></body></html>`);
+  doc.close();
+
+  for (const canvas of canvases) {
+    const img = doc.createElement("img");
+    img.src = canvas.toDataURL("image/png");
+    doc.body.appendChild(img);
+  }
+
+  const prevTitle = document.title;
+  document.title = " ";
+
+  const cleanup = () => {
+    document.title = prevTitle;
+    iframe.remove();
+    win.removeEventListener("afterprint", cleanup);
+  };
+  win.addEventListener("afterprint", cleanup);
+
+  const startPrint = () => {
+    win.focus();
+    win.print();
+  };
+
+  const images = [...doc.images];
+  if (!images.length) {
+    startPrint();
+    return;
+  }
+
+  let pending = images.length;
+  const done = () => {
+    pending -= 1;
+    if (pending === 0) startPrint();
+  };
+  for (const img of images) {
+    if (img.complete) done();
+    else {
+      img.onload = done;
+      img.onerror = done;
+    }
+  }
+}
 
 function showError(err) {
   const msg =

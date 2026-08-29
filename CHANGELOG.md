@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Incorrect PDF password now returns a clear error instead of crashing the preview server
 - Fixed blank screen after clicking OK on the verification popup
 - Improved print output with background 600 DPI rendering while keeping screen preview responsive
+- Print output no longer includes browser title, URL, date, or page-number headers/footers
 
 ### Removed
 

@@ -272,6 +272,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
 @media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
   body { background: #fff; }
   .chrome, .panel, .docbar, .modal { display: none !important; }
   #workspace[hidden] { display: block !important; }
