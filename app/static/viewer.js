@@ -156,7 +156,7 @@ printBtn.addEventListener("click", () => {
 function showError(err) {
   const msg =
     err instanceof TypeError && /fetch/i.test(String(err.message))
-      ? "Cannot reach the eVerify server. Run ./everify-app in the project folder, then refresh this page."
+      ? "Cannot reach the server. Run ./everify-app in the project folder, then refresh this page."
       : err.message;
   errorEl.textContent = msg;
   errorEl.hidden = false;
@@ -374,7 +374,7 @@ function buildValidationModalBody(payload) {
   return `
     ${sigBlocks}
     <section class="modal-section">
-      <h3>How eVerify validates</h3>
+      <h3>How validation works</h3>
       <p class="modal-explainer">
         Validation runs locally on your machine using <strong>pyHanko</strong> — the same
         class of checks Adobe Acrobat performs — without sending your PDF to any server.

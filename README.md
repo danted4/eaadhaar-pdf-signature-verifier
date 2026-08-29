@@ -1,8 +1,10 @@
-# eVerify
+# e-Aadhaar PDF Signature Verifier
 
-**Local PDF signature verification for password-protected e-Aadhaar documents** — with an Acrobat-style green tick stamp for print/preview, without Adobe Acrobat.
+**Local e-Aadhaar (Aadhar) PDF digital signature validation** — pyHanko, CCA India 2022, Acrobat-style green tick. No upload. Not affiliated with UIDAI or Adobe.
 
-eVerify validates the **UIDAI digital signature** embedded in your downloaded e-Aadhaar PDF using India's **CCA PKI** trust roots. Everything runs **on your machine**. No upload, no cloud, no account.
+Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar PDF using India's **CCA PKI** trust roots. Everything runs **on your machine**. No cloud, no account.
+
+> **Keywords:** e-Aadhaar, Aadhaar, Aadhar, UIDAI, PDF signature, digital signature, PKCS#7, pyHanko, CCA India, India PKI, Acrobat alternative, green tick, offline verification.
 
 ---
 
@@ -17,7 +19,7 @@ Photocopy shops and government workflows often use **Adobe Acrobat** to:
 
 That works, but Acrobat is **heavy**, often **paid**, and **overkill** if you only need signature validation and a correct validity mark. macOS Preview and most browsers show a **?** for Indian PKI signatures even when the document is **cryptographically valid** — they simply do not ship the **CCA India** root certificates or full Adobe-style signature rendering.
 
-eVerify is a small, local tool that:
+This tool is a small, local alternative to Adobe Acrobat for Indian PKI–signed PDFs. It:
 
 - Performs the same **class of cryptographic checks** as Acrobat (via [pyHanko](https://github.com/MatthiasValvekens/pyHanko))  
 - Renders an **Acrobat-style green tick** overlay (tuned in the stamp lab)  
@@ -37,8 +39,8 @@ eVerify is a small, local tool that:
 **macOS / Linux**
 
 ```bash
-git clone https://github.com/danted4/everify.git
-cd everify
+git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
+cd eaadhaar-pdf-signature-verifier
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -46,8 +48,8 @@ chmod +x setup.sh
 **Windows** (Command Prompt or PowerShell)
 
 ```bat
-git clone https://github.com/danted4/everify.git
-cd everify
+git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
+cd eaadhaar-pdf-signature-verifier
 setup.bat
 ```
 
@@ -65,13 +67,13 @@ setup.bat
 everify-app.bat
 ```
 
-Open **http://127.0.0.1:8765/** in your browser. Your terminal should show `eVerify viewer at http://127.0.0.1:8765/`.
+Open **http://127.0.0.1:8765/** in your browser. Your terminal should show `e-Aadhaar PDF Signature Verifier at http://127.0.0.1:8765/`.
 
 ---
 
 ## Platform commands
 
-All commands assume you have already cloned the repo and are inside the `everify` folder (`cd everify`).
+All commands assume you have already cloned the repo and are inside the `eaadhaar-pdf-signature-verifier` folder.
 
 | Task | macOS | Linux | Windows |
 |------|-------|-------|---------|
@@ -85,8 +87,8 @@ All commands assume you have already cloned the repo and are inside the `everify
 ### macOS — full copy-paste
 
 ```bash
-git clone https://github.com/danted4/everify.git
-cd everify
+git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
+cd eaadhaar-pdf-signature-verifier
 chmod +x setup.sh && ./setup.sh
 ./everify-app
 ```
@@ -100,8 +102,8 @@ CLI (optional):
 ### Linux — full copy-paste
 
 ```bash
-git clone https://github.com/danted4/everify.git
-cd everify
+git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
+cd eaadhaar-pdf-signature-verifier
 chmod +x setup.sh && ./setup.sh
 ./everify-app
 ```
@@ -117,8 +119,8 @@ CLI (optional):
 Command Prompt or PowerShell:
 
 ```bat
-git clone https://github.com/danted4/everify.git
-cd everify
+git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git
+cd eaadhaar-pdf-signature-verifier
 setup.bat
 everify-app.bat
 ```
@@ -143,7 +145,7 @@ You need:
 2. The **PDF password** you chose when downloading (often your name in `CAPS` + birth year, e.g. `NAME1990`). This is **not** your Aadhaar number.
 3. A computer with **Python 3.10+** and a web browser.
 
-eVerify checks the **digital signature** UIDAI embedded in that PDF. It does **not** log in to UIDAI or verify your identity online.
+e-Aadhaar PDF Verifier checks the **digital signature** UIDAI embedded in that PDF. It does **not** log in to UIDAI or verify your identity online.
 
 ---
 
@@ -154,8 +156,8 @@ eVerify checks the **digital signature** UIDAI embedded in that PDF. It does **n
 | Step | What to do |
 |------|------------|
 | **1** | Open a terminal |
-| **2** | Clone the repo: `git clone https://github.com/danted4/everify.git` |
-| **3** | Enter the folder: `cd everify` |
+| **2** | Clone the repo: `git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git` |
+| **3** | Enter the folder: `cd eaadhaar-pdf-signature-verifier` |
 | **4** | Run setup: `chmod +x setup.sh && ./setup.sh` |
 | **5** | Wait until you see **“Setup complete”** |
 
@@ -164,8 +166,8 @@ eVerify checks the **digital signature** UIDAI embedded in that PDF. It does **n
 | Step | What to do |
 |------|------------|
 | **1** | Open Command Prompt or PowerShell |
-| **2** | Clone the repo: `git clone https://github.com/danted4/everify.git` |
-| **3** | Enter the folder: `cd everify` |
+| **2** | Clone the repo: `git clone https://github.com/danted4/eaadhaar-pdf-signature-verifier.git` |
+| **3** | Enter the folder: `cd eaadhaar-pdf-signature-verifier` |
 | **4** | Run setup: `setup.bat` |
 | **5** | Wait until you see **“Setup complete”** |
 
@@ -179,8 +181,8 @@ Steps **2–10** are the same on every platform (browser UI). Only **step 1** (s
 
 | Step | What to do | What you should see |
 |------|------------|---------------------|
-| **1** | Start the viewer (see platform table above) | Terminal prints `eVerify viewer at http://127.0.0.1:8765/` |
-| **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | eVerify upload screen |
+| **1** | Start the viewer (see platform table above) | Terminal prints the local URL |
+| **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | Upload screen |
 | **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears below the button |
 | **4** | Type your **PDF password** in the password field | — |
 | **5** | Click **Preview** | Document opens; brown bar says *“Preview — click the ? mark to verify”* |
@@ -212,7 +214,7 @@ A successful run ends with **`Bottom line: VALID`**.
 
 - UIDAI’s certificate signed the PDF and the signature **has not been tampered with**
 - The certificate chain reaches **CCA India 2022** (India’s root CA), using roots bundled in this project
-- The **date on the stamp** is when UIDAI signed the file, **not** when you ran eVerify
+- The **date on the stamp** is when UIDAI signed the file, **not** when you ran e-Aadhaar PDF Verifier
 
 This is the same **kind** of check Adobe Acrobat performs for “Signature valid” on an e-Aadhaar PDF.
 
@@ -222,12 +224,12 @@ This is the same **kind** of check Adobe Acrobat performs for “Signature valid
 
 | Problem | macOS / Linux | Windows |
 |---------|---------------|---------|
-| `Cannot reach the eVerify server` | Run `./everify-app` first | Run `everify-app.bat` first |
+| `Cannot reach the server` | Run `./everify-app` first | Run `everify-app.bat` first |
 | `python3` / `python` not found | Install Python 3.10+; use `python3` | Install from python.org; enable **Add to PATH**; use `python` |
 | `PDF is password-protected` / wrong password | Use UIDAI download password, not Aadhaar number | Same |
 | `No digital signature found` | File may not be a signed e-Aadhaar PDF | Same |
 | Preview shows `?` but won’t turn green | Click the signature box; read popup for **INVALID** | Same |
-| macOS Preview shows `?` | Expected — use eVerify instead | N/A |
+| macOS Preview shows `?` | Expected — use e-Aadhaar PDF Verifier instead | N/A |
 
 ---
 
@@ -236,7 +238,7 @@ This is the same **kind** of check Adobe Acrobat performs for “Signature valid
 1. **Choose PDF** — your password-protected e-Aadhaar file  
 2. Enter the **PDF password** (the one you set when downloading from UIDAI)  
 3. Click **Preview** — the document opens with the native **?** stamp from the file  
-4. **Click the ?** signature area — eVerify validates locally and shows a details popup  
+4. **Click the ?** signature area — e-Aadhaar PDF Verifier validates locally and shows a details popup  
 5. Click **OK** — the green **Signature valid** stamp is drawn (canvas overlay only)  
 6. **Print** — original file on disk is unchanged  
 
@@ -257,12 +259,12 @@ flowchart LR
 
 ## How validation works
 
-eVerify is **not** UIDAI authentication (no OTP, no biometric API, no Aadhaar number lookup). It only verifies the **embedded digital signature** on a PDF you already have.
+e-Aadhaar PDF Verifier is **not** UIDAI authentication (no OTP, no biometric API, no Aadhaar number lookup). It only verifies the **embedded digital signature** on a PDF you already have.
 
 ```mermaid
 sequenceDiagram
   participant U as Your browser
-  participant S as eVerify server (localhost)
+  participant S as e-Aadhaar PDF Verifier server (localhost)
   participant P as pyHanko
   participant C as CCA India roots
 
@@ -290,7 +292,7 @@ sequenceDiagram
 | **Coverage** | Signature covers the entire file (no disallowed changes) |
 | **Signing time** | Timestamp **reported by the signer** at signing (shown on the stamp) |
 
-The date on the green stamp is **when UIDAI signed the PDF**, not when you ran eVerify.
+The date on the green stamp is **when UIDAI signed the PDF**, not when you ran e-Aadhaar PDF Verifier.
 
 Trust roots shipped with this project:
 
@@ -303,7 +305,7 @@ Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.h
 
 ## Acrobat comparison
 
-| | Adobe Acrobat | eVerify |
+| | Adobe Acrobat | e-Aadhaar PDF Verifier |
 |---|---------------|---------|
 | Validates Indian PKI / UIDAI chain | Yes | Yes (pyHanko + CCA roots) |
 | Green “Signature valid” appearance | Yes | Yes (custom renderer, stamp lab tuned) |
@@ -343,7 +345,7 @@ The interactive stamp tuning lab (`prototype/`) is **local development only** an
 ## Project layout
 
 ```
-everify/
+eaadhaar-pdf-signature-verifier/
 ├── app/
 │   ├── server.py          # Local HTTP server (127.0.0.1:8765)
 │   ├── verify.py          # pyHanko validation + widget geometry
@@ -373,9 +375,9 @@ everify/
 
 **Not legal advice.** Read and adapt for your use case.
 
-- **No affiliation** — eVerify is **not** affiliated with, endorsed by, or maintained by **UIDAI** (Unique Identification Authority of India), **Adobe**, **CCA India**, or any government body.  
+- **No affiliation** — e-Aadhaar PDF Verifier is **not** affiliated with, endorsed by, or maintained by **UIDAI** (Unique Identification Authority of India), **Adobe**, **CCA India**, or any government body.  
 - **Not UIDAI authentication** — this tool does **not** perform Aadhaar authentication, e-KYC, or identity verification against UIDAI services. It only checks the **digital signature** on a PDF file you provide.  
-- **No official status** — a green tick in eVerify means **cryptographic validation succeeded locally**; it does not replace official processes where a specific authority or format is required.  
+- **No official status** — a green tick in e-Aadhaar PDF Verifier means **cryptographic validation succeeded locally**; it does not replace official processes where a specific authority or format is required.  
 - **Trademarks** — “Aadhaar”, “UIDAI”, “Adobe”, and “Acrobat” are trademarks of their respective owners. Use of those names here is **descriptive** (identifying the document type and comparison), not as branding or endorsement.  
 - **Aadhaar logo** — do not use the UIDAI/Aadhaar logo in forks or derivatives without **written permission** from UIDAI.  
 - **Your responsibility** — you are responsible for lawful handling of identity documents, passwords, and printed copies. Comply with applicable law (including India's IT Act and Aadhaar-related regulations) and organisational policies.  

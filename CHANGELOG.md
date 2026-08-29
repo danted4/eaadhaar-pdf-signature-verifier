@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Local web viewer at `http://127.0.0.1:8765/` for password-protected e-Aadhaar PDFs
+- Published as **eaadhaar-pdf-signature-verifier** with SEO README and GitHub topics
 - Preview-first flow: native `?` stamp from the PDF, then click-to-verify
 - Cryptographic validation via pyHanko against bundled **CCA India 2022** trust roots
 - Verification details popup (signer, signing time, trust chain, integrity checks)
@@ -33,4 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `everify.py` monolithic entry point (use `./everify-app` instead)
 - Prototype stamp lab from the public repository (local dev only, gitignored)
 
-[1.0.0]: https://github.com/danted4/everify/releases/tag/v1.0.0
+[1.0.0]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v1.0.0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local eVerify viewer: validate, overlay validity mark, preview + print."""
+"""Local e-Aadhaar PDF signature verifier: validate, overlay validity mark, preview + print."""
 
 from __future__ import annotations
 
@@ -243,7 +243,7 @@ def main():
         port = int(sys.argv[1])
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
-    print(f"eVerify viewer at {url}")
+    print(f"e-Aadhaar PDF Signature Verifier at {url}")
     print("Original PDF is never modified. Ctrl+C to quit.")
     threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
