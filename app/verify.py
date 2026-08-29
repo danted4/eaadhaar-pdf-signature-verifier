@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pikepdf
 from pyhanko.keys import load_cert_from_pemder
+from pyhanko.pdf_utils.crypt import AuthStatus
 from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.sign.validation import validate_pdf_signature
 from pyhanko_certvalidator import ValidationContext
@@ -140,7 +141,10 @@ def decrypt_bytes(pdf_bytes: bytes, password: str | None) -> bytes:
     except pikepdf.PasswordError:
         if not password:
             raise ValueError("PDF is password-protected") from None
-        pdf = pikepdf.open(io.BytesIO(pdf_bytes), password=password)
+        try:
+            pdf = pikepdf.open(io.BytesIO(pdf_bytes), password=password)
+        except pikepdf.PasswordError:
+            raise ValueError("Incorrect password") from None
     out = io.BytesIO()
     pdf.save(out)
     return out.getvalue()
@@ -173,7 +177,8 @@ def _open_reader(pdf_bytes: bytes, password: str | None) -> PdfFileReader:
     if reader.encrypted:
         if not password:
             raise ValueError("PDF is password-protected")
-        reader.decrypt(password)
+        if reader.decrypt(password).status == AuthStatus.FAILED:
+            raise ValueError("Incorrect password")
     return reader
 
 

@@ -126,6 +126,9 @@ class Handler(BaseHTTPRequestHandler):
             code = 413 if str(exc) == "File too large" else 400
             self._json(code, {"error": str(exc)})
             return
+        except Exception as exc:
+            self._json(400, {"error": str(exc)})
+            return
 
         sid = uuid.uuid4().hex
         SESSIONS[sid] = {
