@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Secrets & local config
+.env
+.env.*
+
+# Identity documents — never commit real e-Aadhaar PDFs
+*.pdf
+
+# OS / editor
+.DS_Store
+.cursor/
+*.swp
+.idea/
+.vscode/
+
+# Prototype Node (optional stamp-lab tooling)
+prototype/node_modules/
+
+# Misc local dumps
+final.json
+cca_india_2022.cer
+EAadhaar_unlocked.pdf

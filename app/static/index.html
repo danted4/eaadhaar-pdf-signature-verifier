@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>eVerify</title>
+  <link rel="stylesheet" href="/static/styles.css?v=7">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+  <header class="chrome" id="chrome">
+    <div class="brand">eVerify</div>
+    <div class="hint">Local validation · original PDF unchanged</div>
+  </header>
+
+  <section id="upload" class="panel">
+    <h1>Open e-Aadhaar</h1>
+    <p class="lede">Opens your e-Aadhaar as-is (with the original ? stamp), then verifies when you click the signature — same booth flow as Acrobat. This is not Adobe software.</p>
+    <form id="form">
+      <label class="file" id="filePick">
+        <input type="file" id="pdf" accept="application/pdf" required>
+        <span id="fileLabel">Choose PDF</span>
+      </label>
+      <input type="password" id="password" placeholder="Password (e.g. NAME1990)" autocomplete="off">
+      <button type="submit">Preview</button>
+    </form>
+    <p id="fileChosen" class="file-chosen" hidden></p>
+    <p id="error" class="error" hidden></p>
+  </section>
+
+  <div id="workspace" hidden>
+    <div id="docbar" class="docbar preview">
+      <span class="docbar-icon" aria-hidden="true"></span>
+      <div>
+        <strong id="docbar-title">Preview — click the ? mark to verify</strong>
+        <div id="docbar-sub"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="print" disabled title="Verify the signature first">Print</button>
+        <button type="button" id="again" class="ghost">Open another</button>
+      </div>
+    </div>
+    <div id="pages" class="pages"></div>
+  </div>
+
+  <div id="validationModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="validationModalTitle">
+    <div class="modal-backdrop" data-dismiss="validation"></div>
+    <div class="modal-card">
+      <header class="modal-header" id="validationModalHeader">
+        <span class="modal-badge" id="validationModalBadge" aria-hidden="true"></span>
+        <div>
+          <h2 id="validationModalTitle">Signature verification</h2>
+          <p id="validationModalLead" class="modal-lead"></p>
+        </div>
+      </header>
+      <div id="validationModalBody" class="modal-body"></div>
+      <footer class="modal-footer">
+        <button type="button" id="validationModalAction" class="modal-primary"></button>
+      </footer>
+    </div>
+  </div>
+
+  <script type="module" src="/static/viewer.js?v=23"></script>
+</body>
+</html>

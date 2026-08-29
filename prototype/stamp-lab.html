@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Signature stamp lab</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; background: #1e1e1e; color: #eee; }
+    header { padding: 12px 20px; background: #111; border-bottom: 1px solid #333; }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    header p { margin: 0; color: #aaa; font-size: 13px; }
+    main { display: grid; grid-template-columns: 360px 1fr; min-height: calc(100vh - 64px); }
+    aside { padding: 12px 14px 40px; background: #252525; border-right: 1px solid #333; overflow: auto; max-height: calc(100vh - 64px); }
+    aside details { margin-bottom: 8px; border: 1px solid #383838; border-radius: 6px; background: #2c2c2c; }
+    aside summary { cursor: pointer; padding: 8px 10px; font-size: 12px; font-weight: 600; color: #ddd; user-select: none; }
+    .ctrl { padding: 0 10px 10px; }
+    label { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 2px; font-size: 11px; color: #bbb; gap: 8px; }
+    label span.val { font-family: ui-monospace, monospace; color: #8cf; min-width: 48px; text-align: right; }
+    input[type=range] { width: 100%; }
+    input[type=color] { width: 100%; height: 28px; border: 0; padding: 0; background: transparent; }
+    select { width: 100%; padding: 6px; background: #1a1a1a; color: #eee; border: 1px solid #444; border-radius: 4px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; align-content: start; }
+    @media (min-width: 1400px) { .panels { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+    .panel { background: #2a2a2a; border-radius: 8px; padding: 10px; }
+    .panel h2 { margin: 0 0 8px; font-size: 13px; color: #ccc; }
+    .frame { background: #fff; display: inline-block; line-height: 0; }
+    canvas, img { display: block; image-rendering: pixelated; }
+    .overlay-wrap { position: relative; display: inline-block; }
+    .overlay-wrap canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
+    .actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    button { padding: 8px 10px; background: #0d66d0; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    button.secondary { background: #444; }
+    button:hover { filter: brightness(1.1); }
+    #configOut { width: 100%; height: 140px; margin-top: 8px; font-family: ui-monospace, monospace; font-size: 10px; background: #1a1a1a; color: #9f9; border: 1px solid #444; border-radius: 4px; padding: 8px; resize: vertical; }
+    input[type=number].ptnum { width: 100%; padding: 4px 6px; background: #1a1a1a; color: #8cf; border: 1px solid #444; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 11px; }
+    .ctrl-axis { margin-bottom: 10px; }
+    .hint { font-size: 10px; color: #888; margin-top: 4px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Signature stamp lab</h1>
+    <p>Tune every dimension here, then export JSON and send it to lock the main app.</p>
+  </header>
+  <main>
+    <aside id="controls"></aside>
+    <div class="panels">
+      <div class="panel">
+        <h2>PDF baseline — invalid (?)</h2>
+        <div class="frame"><img id="baseline" src="baseline_invalid.png" alt="baseline"></div>
+      </div>
+      <div class="panel">
+        <h2>Our render</h2>
+        <div class="frame"><canvas id="ours"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Overlay (baseline under ours)</h2>
+        <div class="frame overlay-wrap">
+          <img id="baseline2" src="baseline_invalid.png" alt="">
+          <canvas id="overlay"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Reference — Acrobat print</h2>
+        <div class="frame"><img src="reference-valid-print.jpg" alt="reference" style="max-width:100%;image-rendering:auto"></div>
+      </div>
+    </div>
+  </main>
+  <script type="module">
+    import {
+      drawStamp, DS_UNKNOWN, buildValidStream, packConfig, unpackConfig,
+      DEFAULTS, FORM_W, FORM_H, bodyYs,
+      DEFAULT_TICK_POINTS_100, TICK_POINT_LABELS,
+    } from "./stamp-render.js?v=26";
+
+    const TICK_POINT_COUNT = DEFAULT_TICK_POINTS_100.length;
+
+    function fitSliderToValue(slider, value) {
+      let v = +value;
+      if (!Number.isFinite(v)) v = 0;
+      let lo = +slider.min;
+      let hi = +slider.max;
+      const pad = Math.max(Math.abs(v) * 0.25, 2, (hi - lo) * 0.15);
+      if (v < lo) lo = v - pad;
+      if (v > hi) hi = v + pad;
+      slider.min = lo;
+      slider.max = hi;
+      slider.value = v;
+      return v;
+    }
+
+    function initialSliderSpan(value) {
+      const v = Math.abs(+value) || 1;
+      return Math.max(v * 0.6, 4);
+    }
+
+    const SLIDERS = [
+      { section: "Stamp size & position (whole block)", items: [
+        { id: "globalScale", label: "Uniform scale (1 = fit box)", step: 0.01, value: DEFAULTS.globalScale },
+        { id: "stampOffsetX", label: "Offset X (pt, right +)", step: 0.1, value: DEFAULTS.stampOffsetX },
+        { id: "stampOffsetY", label: "Offset Y (pt, down +)", step: 0.1, value: DEFAULTS.stampOffsetY },
+      ]},
+      { section: "Preview", items: [
+        { id: "scale", label: "Canvas scale (×)", step: 1, value: DEFAULTS.previewScale },
+        { id: "opacity", label: "Overlay opacity (%)", step: 1, value: 50 },
+      ]},
+      { section: "Header (n4) — “Signature valid”", items: [
+        { id: "n4x", label: "X (pt)", step: 0.1, value: DEFAULTS.n4.x },
+        { id: "n4y", label: "Y baseline (pt)", step: 0.1, value: DEFAULTS.n4.y },
+        { id: "n4Size", label: "Font size (pt)", step: 0.05, value: DEFAULTS.n4.fontSize },
+        { id: "n4Weight", label: "Font weight", step: 50, value: DEFAULTS.n4.fontWeight },
+      ]},
+      { section: "Body (n2) — certificate lines", items: [
+        { id: "n2x", label: "X (pt)", step: 0.1, value: DEFAULTS.n2.x },
+        { id: "n2Size", label: "Font size (pt)", step: 0.05, value: DEFAULTS.n2.fontSize },
+        { id: "n2Weight", label: "Font weight", step: 50, value: DEFAULTS.n2.fontWeight },
+        { id: "n2LineHeight", label: "Line height (pt)", step: 0.05, value: DEFAULTS.n2.lineHeight },
+        { id: "n2yOffset", label: "Block Y offset (all lines, pt)", step: 0.1, value: DEFAULTS.n2.yOffset ?? 0 },
+      ]},
+      { section: "Tick placement (n1 widget)", items: [
+        { id: "n1tx", label: "Translate X (pt)", step: 0.1, value: DEFAULTS.n1.tx },
+        { id: "n1ty", label: "Translate Y (pt)", step: 0.1, value: DEFAULTS.n1.ty },
+        { id: "n1scale", label: "Icon scale", step: 0.01, value: DEFAULTS.n1.scale },
+        { id: "n1flipY", label: "Flip Y (0=off, 1=on)", step: 1, value: 1 },
+      ]},
+      { section: "Tick inner map (PDF stream space)", items: [
+        { id: "tickMapScale", label: "Inner map scale", step: 0.1, value: DEFAULTS.tick.mapScale },
+        { id: "tickMapOx", label: "Inner map offset X", step: 1, value: DEFAULTS.tick.mapOx },
+        { id: "tickMapOy", label: "Inner map offset Y", step: 1, value: DEFAULTS.tick.mapOy },
+      ]},
+      { section: "Tick border, colours & shadow", items: [
+        { id: "tickBorderWidth", label: "Border thickness (0=off)", step: 0.25, value: DEFAULTS.tick.borderWidth },
+        { id: "tickBorderColor", label: "Border colour", type: "color", value: DEFAULTS.tick.borderColor },
+        { id: "tickColor", label: "Tick fill", type: "color", value: DEFAULTS.tick.fillColor },
+        { id: "shadowColor", label: "Shadow fill", type: "color", value: DEFAULTS.tick.shadowColor },
+        { id: "shadowDx", label: "Shadow offset X (inner)", step: 1, value: DEFAULTS.tick.shadowDx },
+        { id: "shadowDy", label: "Shadow offset Y (inner)", step: 1, value: DEFAULTS.tick.shadowDy },
+      ]},
+    ];
+
+    const els = {
+      ours: document.getElementById("ours"),
+      overlay: document.getElementById("overlay"),
+      controls: document.getElementById("controls"),
+    };
+
+    function addFreeRangeControl(box, item) {
+      const id = item.id;
+      const step = item.step ?? 0.1;
+      const wrap = document.createElement("div");
+      wrap.className = "ctrl-axis";
+      const lab = document.createElement("label");
+      lab.htmlFor = `${id}Num`;
+      lab.innerHTML = `${item.label}<span class="val" id="${id}Val"></span>`;
+      wrap.appendChild(lab);
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.id = id;
+      slider.step = step;
+      const span = initialSliderSpan(item.value);
+      slider.min = (+item.value) - span;
+      slider.max = (+item.value) + span;
+      wrap.appendChild(slider);
+      const num = document.createElement("input");
+      num.type = "number";
+      num.className = "ptnum";
+      num.id = `${id}Num`;
+      num.step = step;
+      wrap.appendChild(num);
+      box.appendChild(wrap);
+      els[id] = slider;
+      els[`${id}Num`] = num;
+      els[`${id}Val`] = lab.querySelector(".val");
+      num.value = item.value;
+      fitSliderToValue(slider, item.value);
+      slider.addEventListener("input", () => { num.value = slider.value; });
+      num.addEventListener("input", () => fitSliderToValue(slider, num.value));
+      num.addEventListener("change", () => fitSliderToValue(slider, num.value));
+    }
+
+    function setControl(id, value) {
+      if (els[`${id}Num`]) els[`${id}Num`].value = value;
+      if (els[id]) fitSliderToValue(els[id], value);
+    }
+
+    function addPointAxis(box, pointIdx, axis, value) {
+      addFreeRangeControl(box, {
+        id: `tickP${pointIdx}${axis}`,
+        label: axis.toUpperCase(),
+        step: 0.1,
+        value,
+      });
+    }
+
+    function appendRibbonPointControls(frag) {
+      for (let i = 0; i < TICK_POINT_COUNT; i++) {
+        const [x, y] = DEFAULT_TICK_POINTS_100[i];
+        const det = document.createElement("details");
+        det.open = i < 3;
+        det.innerHTML = `<summary>${TICK_POINT_LABELS[i]}</summary><div class="ctrl"></div>`;
+        const box = det.querySelector(".ctrl");
+        addPointAxis(box, i, "x", x);
+        addPointAxis(box, i, "y", y);
+        frag.appendChild(det);
+      }
+    }
+
+    function buildControls() {
+      const frag = document.createDocumentFragment();
+      for (const sec of SLIDERS) {
+        const det = document.createElement("details");
+        det.open = sec.section.includes("Stamp size") || sec.section.includes("Tick") || sec.section.includes("Header");
+        det.innerHTML = `<summary>${sec.section}</summary><div class="ctrl"></div>`;
+        const box = det.querySelector(".ctrl");
+        for (const item of sec.items) {
+          if (item.type === "color") {
+            const id = item.id;
+            const lab = document.createElement("label");
+            lab.htmlFor = id;
+            lab.innerHTML = `${item.label}<span class="val" id="${id}Val"></span>`;
+            box.appendChild(lab);
+            const inp = document.createElement("input");
+            inp.type = "color";
+            inp.id = id;
+            inp.value = item.value;
+            box.appendChild(inp);
+            els[id] = inp;
+            els[`${id}Val`] = lab.querySelector(".val");
+          } else {
+            addFreeRangeControl(box, item);
+          }
+        }
+        frag.appendChild(det);
+      }
+
+      appendRibbonPointControls(frag);
+
+      const modeSec = document.createElement("details");
+      modeSec.open = true;
+      modeSec.innerHTML = `<summary>Mode & export</summary><div class="ctrl"></div>`;
+      const mbox = modeSec.querySelector(".ctrl");
+      mbox.innerHTML = `
+        <label>Mode<select id="mode">
+          <option value="valid">Valid (green tick)</option>
+          <option value="invalid">Invalid (PDF ? stream)</option>
+          <option value="compare-invalid">Compare invalid vs baseline</option>
+        </select></label>
+        <div class="actions">
+          <button type="button" id="exportPng">Export PNG</button>
+          <button type="button" id="exportJson">Export / refresh JSON config</button>
+          <button type="button" class="secondary" id="copyJson">Copy JSON to clipboard</button>
+          <label class="secondary" style="display:block;margin:0">
+            <input type="file" id="importJson" accept="application/json,.json" hidden>
+            <button type="button" class="secondary" id="importJsonBtn" style="width:100%">Load JSON config…</button>
+          </label>
+          <button type="button" class="secondary" id="resetDefaults">Reset to defaults</button>
+        </div>
+        <textarea id="configOut" readonly placeholder="JSON config appears here…"></textarea>
+        <p class="hint">Every numeric control: slider + number box. Type any value — no max limit; slider expands to fit.</p>`;
+      frag.appendChild(modeSec);
+      els.controls.appendChild(frag);
+
+      els.mode = document.getElementById("mode");
+      els.configOut = document.getElementById("configOut");
+      document.getElementById("exportPng").onclick = exportPng;
+      document.getElementById("exportJson").onclick = () => updateConfigOut(true);
+      document.getElementById("copyJson").onclick = copyJson;
+      document.getElementById("resetDefaults").onclick = resetDefaults;
+      document.getElementById("importJsonBtn").onclick = () => document.getElementById("importJson").click();
+      document.getElementById("importJson").onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          applyConfig(JSON.parse(await file.text()));
+        } catch (err) {
+          alert("Could not parse JSON: " + err.message);
+        }
+        e.target.value = "";
+      };
+    }
+
+    function num(id) {
+      const n = els[`${id}Num`];
+      if (n) {
+        const v = +n.value;
+        return Number.isFinite(v) ? v : 0;
+      }
+      const el = els[id];
+      if (!el) return 0;
+      if (el.type === "color") return el.value;
+      return +el.value;
+    }
+
+    function fmtVal(value, step = 0.1) {
+      const d = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+      return (+value).toFixed(d);
+    }
+
+    function pointVal(pointIdx, axis) {
+      return num(`tickP${pointIdx}${axis}`);
+    }
+
+    function tickPointsFromValues() {
+      return Array.from({ length: TICK_POINT_COUNT }, (_, i) => [
+        pointVal(i, "x"),
+        pointVal(i, "y"),
+      ]);
+    }
+
+    function values() {
+      const v = {
+        scale: num("scale"),
+        globalScale: num("globalScale"),
+        stampOffsetX: num("stampOffsetX"),
+        stampOffsetY: num("stampOffsetY"),
+        opacity: num("opacity"),
+        n4x: num("n4x"), n4y: num("n4y"), n4Size: num("n4Size"), n4Weight: num("n4Weight"),
+        n2x: num("n2x"), n2Size: num("n2Size"), n2Weight: num("n2Weight"),
+        n2LineHeight: num("n2LineHeight"), n2yOffset: num("n2yOffset"),
+        n1tx: num("n1tx"), n1ty: num("n1ty"), n1scale: num("n1scale"), n1flipY: num("n1flipY") === 1,
+        tickMapScale: num("tickMapScale"), tickMapOx: num("tickMapOx"), tickMapOy: num("tickMapOy"),
+        tickBorderWidth: num("tickBorderWidth"), tickBorderColor: num("tickBorderColor"),
+        tickColor: num("tickColor"), shadowColor: num("shadowColor"),
+        shadowDx: num("shadowDx"), shadowDy: num("shadowDy"),
+      };
+      for (let i = 0; i < TICK_POINT_COUNT; i++) {
+        v[`tickP${i}x`] = pointVal(i, "x");
+        v[`tickP${i}y`] = pointVal(i, "y");
+      }
+      v.tickPoints = tickPointsFromValues();
+      return v;
+    }
+
+    function tickFromValues(v) {
+      return {
+        points100: v.tickPoints,
+        mapScale: v.tickMapScale, mapOx: v.tickMapOx, mapOy: v.tickMapOy,
+        fillColor: v.tickColor, shadowColor: v.shadowColor,
+        shadowDx: v.shadowDx, shadowDy: v.shadowDy,
+        borderWidth: v.tickBorderWidth, borderColor: v.tickBorderColor,
+      };
+    }
+
+    function optsFromValues(v) {
+      return {
+        n4: { x: v.n4x, y: v.n4y, fontSize: v.n4Size, fontWeight: v.n4Weight },
+        n2: {
+          x: v.n2x, fontSize: v.n2Size, fontWeight: v.n2Weight,
+          lineHeight: v.n2LineHeight, yOffset: v.n2yOffset,
+          ys: bodyYs(v.n2yOffset, v.n2LineHeight),
+        },
+        n1: { tx: v.n1tx, ty: v.n1ty, scale: v.n1scale, flipY: v.n1flipY },
+        tick: tickFromValues(v),
+        dsValid: buildValidStream(tickFromValues(v)),
+        dsUnknown: DS_UNKNOWN,
+      };
+    }
+
+    function updateValLabels() {
+      for (const sec of SLIDERS) {
+        for (const item of sec.items) {
+          const lab = els[`${item.id}Val`];
+          if (!lab) continue;
+          if (item.type === "color") {
+            lab.textContent = els[item.id]?.value ?? "";
+          } else {
+            lab.textContent = fmtVal(num(item.id), item.step);
+          }
+        }
+      }
+      for (let i = 0; i < TICK_POINT_COUNT; i++) {
+        for (const axis of ["x", "y"]) {
+          const lab = els[`tickP${i}${axis}Val`];
+          if (lab) lab.textContent = fmtVal(pointVal(i, axis), 0.1);
+        }
+      }
+    }
+
+    function updateConfigOut(download = false) {
+      const json = JSON.stringify(packConfig(values()), null, 2);
+      els.configOut.value = json;
+      if (download) {
+        const a = document.createElement("a");
+        a.download = "stamp-config.json";
+        a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+    }
+
+    async function copyJson() {
+      updateConfigOut(false);
+      await navigator.clipboard.writeText(els.configOut.value);
+    }
+
+    function resetDefaults() {
+      for (const sec of SLIDERS) {
+        for (const item of sec.items) {
+          if (item.type === "color") {
+            if (els[item.id]) els[item.id].value = item.value;
+          } else {
+            setControl(item.id, item.value);
+          }
+        }
+      }
+      for (let i = 0; i < TICK_POINT_COUNT; i++) {
+        const [x, y] = DEFAULT_TICK_POINTS_100[i];
+        setPoint(i, x, y);
+      }
+      render();
+    }
+
+    function setPoint(i, x, y) {
+      setControl(`tickP${i}x`, x);
+      setControl(`tickP${i}y`, y);
+    }
+
+    function applyConfig(cfg) {
+      const u = unpackConfig(cfg);
+      setControl("n4x", u.n4.x);
+      setControl("n4y", u.n4.y);
+      setControl("n4Size", u.n4.fontSize);
+      setControl("n4Weight", u.n4.fontWeight ?? DEFAULTS.n4.fontWeight);
+      setControl("n2x", u.n2.x);
+      setControl("n2Size", u.n2.fontSize);
+      setControl("n2Weight", u.n2.fontWeight ?? DEFAULTS.n2.fontWeight);
+      setControl("n2LineHeight", u.n2.lineHeight ?? DEFAULTS.n2.lineHeight);
+      setControl("n2yOffset", u.n2.yOffset ?? 0);
+      setControl("n1tx", u.n1.tx);
+      setControl("n1ty", u.n1.ty);
+      setControl("n1scale", u.n1.scale);
+      setControl("n1flipY", u.n1.flipY ? 1 : 0);
+      const t = u.tick;
+      (t.points100 ?? DEFAULT_TICK_POINTS_100).forEach((p, i) => setPoint(i, p[0], p[1]));
+      setControl("tickMapScale", t.mapScale);
+      setControl("tickMapOx", t.mapOx);
+      setControl("tickMapOy", t.mapOy);
+      setControl("tickBorderWidth", t.borderWidth ?? 0);
+      els.tickBorderColor.value = t.borderColor ?? DEFAULTS.tick.borderColor;
+      els.tickColor.value = t.fillColor;
+      els.shadowColor.value = t.shadowColor;
+      setControl("shadowDx", t.shadowDx);
+      setControl("shadowDy", t.shadowDy);
+      if (u.scale != null) setControl("scale", u.scale);
+      if (u.globalScale != null) setControl("globalScale", u.globalScale);
+      if (u.stampOffsetX != null) setControl("stampOffsetX", u.stampOffsetX);
+      if (u.stampOffsetY != null) setControl("stampOffsetY", u.stampOffsetY);
+      render();
+    }
+
+    function exportPng() {
+      const a = document.createElement("a");
+      a.download = "stamp-valid.png";
+      a.href = els.ours.toDataURL("image/png");
+      a.click();
+    }
+
+    function render() {
+      updateValLabels();
+      const v = values();
+      const scale = v.scale;
+      const stampScale = scale * (v.globalScale || 1);
+      const w = FORM_W * scale;
+      const h = FORM_H * scale;
+      for (const c of [els.ours, els.overlay]) {
+        c.width = w;
+        c.height = h;
+        c.style.width = `${w}px`;
+        c.style.height = `${h}px`;
+      }
+
+      const mode = els.mode.value;
+      const valid = mode === "valid";
+      const compareInvalid = mode === "compare-invalid";
+      const drawValid = compareInvalid ? false : valid;
+      const opts = optsFromValues(v);
+
+      const ctx = els.ours.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      const ox = (v.stampOffsetX || 0) * scale;
+      const oy = (v.stampOffsetY || 0) * scale;
+      drawStamp(ctx, stampScale, drawValid, {
+        ...opts,
+        skipBackground: true,
+        originX: ox,
+        originY: oy,
+      });
+
+      const octx = els.overlay.getContext("2d");
+      octx.clearRect(0, 0, w, h);
+      octx.globalAlpha = v.opacity / 100;
+      octx.drawImage(els.ours, 0, 0);
+      octx.globalAlpha = 1;
+
+      updateConfigOut(false);
+    }
+
+    buildControls();
+    els.controls.addEventListener("input", (e) => {
+      if (e.target.matches("input, select")) render();
+    });
+    render();
+
+    // Load ?config= base64 or pasted JSON via hash
+    if (location.hash.startsWith("#config=")) {
+      try {
+        applyConfig(JSON.parse(decodeURIComponent(location.hash.slice(8))));
+      } catch (_) { /* ignore */ }
+    }
+  </script>
+</body>
+</html>
