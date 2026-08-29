@@ -34,6 +34,8 @@ eVerify is a small, local tool that:
 
 ### One-time setup
 
+**macOS / Linux**
+
 ```bash
 git clone https://github.com/danted4/everify.git
 cd everify
@@ -41,10 +43,26 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
+**Windows** (Command Prompt or PowerShell)
+
+```bat
+git clone https://github.com/danted4/everify.git
+cd everify
+setup.bat
+```
+
 ### Run the viewer
+
+**macOS / Linux**
 
 ```bash
 ./everify-app
+```
+
+**Windows**
+
+```bat
+everify-app.bat
 ```
 
 Open **http://127.0.0.1:8765/** in your browser. Your terminal should show `eVerify viewer at http://127.0.0.1:8765/`.
@@ -67,15 +85,27 @@ eVerify checks the **digital signature** UIDAI embedded in that PDF. It does **n
 
 ### Part A — One-time install
 
+**macOS / Linux**
+
 | Step | What to do |
 |------|------------|
 | **1** | Open a terminal |
 | **2** | Clone the repo: `git clone https://github.com/danted4/everify.git` |
 | **3** | Enter the folder: `cd everify` |
 | **4** | Run setup: `chmod +x setup.sh && ./setup.sh` |
-| **5** | Wait until you see **“Setup complete”** (creates `.venv`, installs pyHanko, checks CCA root certificates) |
+| **5** | Wait until you see **“Setup complete”** |
 
-If setup fails, ensure `python3 --version` is 3.10 or newer.
+**Windows**
+
+| Step | What to do |
+|------|------------|
+| **1** | Open Command Prompt or PowerShell |
+| **2** | Clone the repo: `git clone https://github.com/danted4/everify.git` |
+| **3** | Enter the folder: `cd everify` |
+| **4** | Run setup: `setup.bat` |
+| **5** | Wait until you see **“Setup complete”** |
+
+If setup fails, ensure `python --version` (Windows) or `python3 --version` (macOS/Linux) is 3.10 or newer.
 
 ---
 
@@ -83,7 +113,7 @@ If setup fails, ensure `python3 --version` is 3.10 or newer.
 
 | Step | What to do | What you should see |
 |------|------------|---------------------|
-| **1** | In the `everify` folder, run: `./everify-app` | Terminal prints the local URL |
+| **1** | In the `everify` folder, run **`./everify-app`** (macOS/Linux) or **`everify-app.bat`** (Windows) | Terminal prints the local URL |
 | **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | eVerify upload screen |
 | **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears below the button |
 | **4** | Type your **PDF password** in the password field | — |
@@ -103,7 +133,8 @@ If setup fails, ensure `python3 --version` is 3.10 or newer.
 | Step | What to do |
 |------|------------|
 | **1** | Complete **Part A** (setup) once |
-| **2** | Run: `.venv/bin/python verify_aadhaar.py /path/to/your-eaadhaar.pdf -p YOUR_PASSWORD` |
+| **2** | Run (macOS/Linux): `.venv/bin/python verify_aadhaar.py /path/to/your-eaadhaar.pdf -p YOUR_PASSWORD` |
+| | Or (Windows): `.venv\Scripts\python verify_aadhaar.py C:\path\to\your-eaadhaar.pdf -p YOUR_PASSWORD` |
 | **3** | Read the output | `Bottom line: VALID` means the signature checks passed |
 
 Example:
@@ -247,8 +278,10 @@ everify/
 │   └── static/            # Viewer UI + stamp renderer
 ├── CCAIndia2022*.cer      # India PKI trust roots (public)
 ├── stamp-config.default.json
-├── everify-app            # Launch viewer
-├── setup.sh               # One-time setup
+├── everify-app            # Launch viewer (macOS / Linux)
+├── everify-app.bat        # Launch viewer (Windows)
+├── setup.sh               # One-time setup (macOS / Linux)
+├── setup.bat              # One-time setup (Windows)
 ├── verify_aadhaar.py      # CLI verifier
 └── requirements.txt
 ```

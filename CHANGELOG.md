@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Acrobat-style green **Signature valid** stamp overlay (canvas only; original PDF unchanged)
 - High-DPI rendering for sharp preview and print
 - CLI verifier: `verify_aadhaar.py`
-- One-shot setup script: `setup.sh`
+- One-shot setup: `setup.sh` (macOS/Linux) and `setup.bat` (Windows)
+- Launch scripts: `everify-app` and `everify-app.bat`
 - Step-by-step README with mermaid diagrams and disclaimers
 - Reference stamp config: `stamp-config.default.json`
 

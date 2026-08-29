@@ -44,7 +44,7 @@ for cert in CCAIndia2022.cer CCAIndia2022SPL.cer; do
   echo "    ✓ $cert"
 done
 
-chmod +x everify-app everify 2>/dev/null || true
+chmod +x everify-app 2>/dev/null || true
 
 echo
 echo "==> Setup complete"
