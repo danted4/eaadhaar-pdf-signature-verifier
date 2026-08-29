@@ -47,9 +47,96 @@ chmod +x setup.sh
 ./everify-app
 ```
 
-Open **http://127.0.0.1:8765/** in your browser.
+Open **http://127.0.0.1:8765/** in your browser. Your terminal should show `eVerify viewer at http://127.0.0.1:8765/`.
 
-### Usage flow
+---
+
+## How to verify your e-Aadhaar (step by step)
+
+### Before you start
+
+You need:
+
+1. An **e-Aadhaar PDF** downloaded from the [UIDAI portal](https://myaadhaar.uidai.gov.in/) (or the official mAadhaar app export).
+2. The **PDF password** you chose when downloading (often your name in `CAPS` + birth year, e.g. `NAME1990`). This is **not** your Aadhaar number.
+3. A computer with **Python 3.10+** and a web browser.
+
+eVerify checks the **digital signature** UIDAI embedded in that PDF. It does **not** log in to UIDAI or verify your identity online.
+
+---
+
+### Part A — One-time install
+
+| Step | What to do |
+|------|------------|
+| **1** | Open a terminal |
+| **2** | Clone the repo: `git clone https://github.com/danted4/everify.git` |
+| **3** | Enter the folder: `cd everify` |
+| **4** | Run setup: `chmod +x setup.sh && ./setup.sh` |
+| **5** | Wait until you see **“Setup complete”** (creates `.venv`, installs pyHanko, checks CCA root certificates) |
+
+If setup fails, ensure `python3 --version` is 3.10 or newer.
+
+---
+
+### Part B — Verify in the browser (recommended)
+
+| Step | What to do | What you should see |
+|------|------------|---------------------|
+| **1** | In the `everify` folder, run: `./everify-app` | Terminal prints the local URL |
+| **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | eVerify upload screen |
+| **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears below the button |
+| **4** | Type your **PDF password** in the password field | — |
+| **5** | Click **Preview** | Document opens; brown bar says *“Preview — click the ? mark to verify”* |
+| **6** | Find the **yellow ?** signature box (top of the Aadhaar page) and **click it** | Brief “Verifying signature…” then a **verification popup** |
+| **7** | Read the popup (signer, signing time, CCA trust chain, how validation works) | UIDAI signer, **CCA India 2022** trust anchor, integrity checks |
+| **8** | If valid → click **OK**. If invalid → click **Close** | Valid: blue bar + green **“Signature valid”** tick on the document |
+| **9** | (Optional) Click **Print** for a paper copy | Print uses the on-screen view with the green tick overlay |
+| **10** | Click **Open another** to verify a different PDF, or press `Ctrl+C` in the terminal to stop the server | — |
+
+**Important:** The green tick is drawn **on screen only** for preview/print. Your original PDF file on disk is **never modified**.
+
+---
+
+### Part C — Verify from the command line (no browser)
+
+| Step | What to do |
+|------|------------|
+| **1** | Complete **Part A** (setup) once |
+| **2** | Run: `.venv/bin/python verify_aadhaar.py /path/to/your-eaadhaar.pdf -p YOUR_PASSWORD` |
+| **3** | Read the output | `Bottom line: VALID` means the signature checks passed |
+
+Example:
+
+```bash
+.venv/bin/python verify_aadhaar.py ~/Downloads/EAadhaar_xxxx.pdf -p NAME1990
+```
+
+---
+
+### What “valid” means
+
+- UIDAI’s certificate signed the PDF and the signature **has not been tampered with**
+- The certificate chain reaches **CCA India 2022** (India’s root CA), using roots bundled in this project
+- The **date on the stamp** is when UIDAI signed the file, **not** when you ran eVerify
+
+This is the same **kind** of check Adobe Acrobat performs for “Signature valid” on an e-Aadhaar PDF.
+
+---
+
+### Troubleshooting
+
+| Problem | Try this |
+|---------|----------|
+| `Cannot reach the eVerify server` | Run `./everify-app` first; keep that terminal open |
+| `PDF is password-protected` / wrong password | Use the password from UIDAI download, not your Aadhaar number |
+| `No digital signature found` | File may not be a signed e-Aadhaar PDF |
+| Preview shows `?` but won’t turn green | Click directly on the signature box; check popup for **INVALID** details |
+| macOS Preview shows `?` | Expected — Preview doesn’t validate Indian PKI; use eVerify instead |
+
+---
+
+### Usage flow (diagram)
 
 1. **Choose PDF** — your password-protected e-Aadhaar file  
 2. Enter the **PDF password** (the one you set when downloading from UIDAI)  
