@@ -20,8 +20,8 @@ __pycache__/
 .idea/
 .vscode/
 
-# Prototype Node (optional stamp-lab tooling)
-prototype/node_modules/
+# Local dev stamp lab (not shipped in the public repo)
+prototype/
 
 # Misc local dumps
 final.json

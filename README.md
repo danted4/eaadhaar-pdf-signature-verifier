@@ -142,18 +142,11 @@ Validate without the web UI:
 
 ---
 
-## Stamp prototype lab
+## Stamp configuration
 
-Tune the green tick appearance (developers / maintainers):
+Locked green-tick layout lives in `STAMP_CONFIG` inside `app/static/viewer.js`. Reference export: [`stamp-config.default.json`](stamp-config.default.json).
 
-```bash
-./everify-app
-# → http://127.0.0.1:8765/prototype/stamp-lab.html
-```
-
-Locked production config: `prototype/stamp-config.default.json` and `STAMP_CONFIG` in `app/static/viewer.js`.
-
-See [prototype/README.md](prototype/README.md).
+The interactive stamp tuning lab (`prototype/`) is **local development only** and is not included in the public repository.
 
 ---
 
@@ -165,8 +158,8 @@ everify/
 │   ├── server.py          # Local HTTP server (127.0.0.1:8765)
 │   ├── verify.py          # pyHanko validation + widget geometry
 │   └── static/            # Viewer UI + stamp renderer
-├── prototype/             # Stamp tuning lab
 ├── CCAIndia2022*.cer      # India PKI trust roots (public)
+├── stamp-config.default.json
 ├── everify-app            # Launch viewer
 ├── setup.sh               # One-time setup
 ├── verify_aadhaar.py      # CLI verifier
