@@ -304,10 +304,10 @@ sequenceDiagram
 
 The date on the green stamp is **when UIDAI signed the PDF**, not when you ran e-Aadhaar PDF Verifier.
 
-Trust roots shipped with this project:
+Trust roots shipped with this project (under `certs/`):
 
-- `CCAIndia2022.cer`  
-- `CCAIndia2022SPL.cer`  
+- `certs/CCAIndia2022.cer`  
+- `certs/CCAIndia2022SPL.cer`  
 
 Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.html).
 
@@ -328,7 +328,7 @@ Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.h
 
 ## Stamp configuration
 
-Locked green-tick layout lives in `STAMP_CONFIG` inside `app/static/viewer.js`. Reference export: [`stamp-config.default.json`](stamp-config.default.json).
+Locked green-tick layout lives in `STAMP_CONFIG` inside `app/static/viewer.js`. Reference export: [`app/stamp-config.default.json`](app/stamp-config.default.json).
 
 The interactive stamp tuning lab (`prototype/`) is **local development only** and is not included in the public repository.
 
@@ -341,9 +341,9 @@ eaadhaar-pdf-signature-verifier/
 ├── app/
 │   ├── server.py          # Local HTTP server (127.0.0.1:8765)
 │   ├── verify.py          # pyHanko validation + widget geometry
+│   ├── stamp-config.default.json
 │   └── static/            # Viewer UI, stamp renderer, vendored pdf.js 3.11.174
-├── CCAIndia2022*.cer      # India PKI trust roots (public)
-├── stamp-config.default.json
+├── certs/                 # India PKI trust roots (public)
 ├── everify-app            # Launch viewer (macOS / Linux)
 ├── everify-app.bat        # Launch viewer (Windows)
 ├── setup.sh               # One-time setup (macOS / Linux)

@@ -41,13 +41,13 @@ class VerifyTests(unittest.TestCase):
         cls._tmp.cleanup()
 
     def test_valid_signature_with_test_root(self) -> None:
-        with mock.patch.object(verify, "ROOT", self.root):
+        with mock.patch.object(verify, "CERTS_DIR", self.root):
             result = verify.validate_uploaded_bytes(self.signed, None)
         self.assertTrue(result["valid"])
         self.assertTrue(result["reports"][0]["valid"])
 
     def test_tampered_bytes_are_invalid(self) -> None:
-        with mock.patch.object(verify, "ROOT", self.root):
+        with mock.patch.object(verify, "CERTS_DIR", self.root):
             result = verify.validate_uploaded_bytes(tamper(self.signed), None)
         self.assertFalse(result["valid"])
 
@@ -62,7 +62,7 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("Incorrect password", str(cm.exception))
 
     def test_no_signature(self) -> None:
-        with mock.patch.object(verify, "ROOT", self.root):
+        with mock.patch.object(verify, "CERTS_DIR", self.root):
             with self.assertRaises(ValueError) as cm:
                 verify.validate_uploaded_bytes(self.unsigned, None)
         self.assertIn("No digital signature", str(cm.exception))
@@ -70,7 +70,7 @@ class VerifyTests(unittest.TestCase):
     def test_missing_cca_files(self) -> None:
         empty = self.root / "empty"
         empty.mkdir(exist_ok=True)
-        with mock.patch.object(verify, "ROOT", empty):
+        with mock.patch.object(verify, "CERTS_DIR", empty):
             with self.assertRaises(FileNotFoundError):
                 verify.load_trust_roots()
 

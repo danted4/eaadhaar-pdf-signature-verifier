@@ -59,11 +59,11 @@ python -m pip install -r requirements.txt
 if errorlevel 1 exit /b 1
 
 echo ==^> CCA India trust roots (bundled with this repo^)
-for %%f in (CCAIndia2022.cer CCAIndia2022SPL.cer) do (
+for %%f in (certs\CCAIndia2022.cer certs\CCAIndia2022SPL.cer) do (
   if not exist "%%f" (
     echo Error: %%f not found.
     echo Download India PKI root certificates from https://cca.gov.in/root_certificate.html
-    echo and place them in the project root, then re-run setup.
+    echo and place them in certs\, then re-run setup.
     exit /b 1
   )
   echo     [ok] %%f

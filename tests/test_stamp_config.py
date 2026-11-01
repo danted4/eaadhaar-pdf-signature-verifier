@@ -36,7 +36,7 @@ def _stamp_config_from_viewer() -> dict:
 
 class StampDriftTests(unittest.TestCase):
     def test_stamp_config_matches_default_json_overlap(self) -> None:
-        default = json.loads((REPO_ROOT / "stamp-config.default.json").read_text(encoding="utf-8"))
+        default = json.loads((REPO_ROOT / "app" / "stamp-config.default.json").read_text(encoding="utf-8"))
         live = _stamp_config_from_viewer()
         for key in ("globalScale", "stampOffsetX", "stampOffsetY", "n4", "n2", "n1", "tick"):
             self.assertEqual(live[key], default[key], key)

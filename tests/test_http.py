@@ -222,7 +222,7 @@ class HttpServerTests(unittest.TestCase):
         sid = payload["sessionId"]
         conn = self._conn()
         try:
-            with mock.patch.object(verify, "ROOT", self.root):
+            with mock.patch.object(verify, "CERTS_DIR", self.root):
                 conn.request(
                     "POST",
                     "/api/validate",

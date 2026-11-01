@@ -40,7 +40,7 @@ class CliTests(unittest.TestCase):
 
     def test_cli_valid_bottom_line(self) -> None:
         stdout = io.StringIO()
-        with mock.patch.object(verify, "ROOT", self.root), mock.patch("sys.stdout", stdout):
+        with mock.patch.object(verify, "CERTS_DIR", self.root), mock.patch("sys.stdout", stdout):
             code = verify_aadhaar.main([str(self.signed_path)])
         self.assertEqual(code, 0)
         self.assertIn("Bottom line: VALID", stdout.getvalue())
@@ -56,7 +56,7 @@ class CliTests(unittest.TestCase):
         unsigned = self.root / "unsigned.bin"
         unsigned.write_bytes(blank_pdf_bytes())
         stderr = io.StringIO()
-        with mock.patch.object(verify, "ROOT", self.root), mock.patch("sys.stderr", stderr):
+        with mock.patch.object(verify, "CERTS_DIR", self.root), mock.patch("sys.stderr", stderr):
             code = verify_aadhaar.main([str(unsigned)])
         self.assertEqual(code, 1)
         self.assertIn("No digital signature", stderr.getvalue())

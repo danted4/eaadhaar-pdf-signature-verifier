@@ -13,18 +13,19 @@ from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.sign.validation import validate_pdf_signature
 from pyhanko_certvalidator import ValidationContext
 
-ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CERTS_DIR = REPO_ROOT / "certs"
 CCA_ROOTS = ["CCAIndia2022.cer", "CCAIndia2022SPL.cer"]
 
 
 def load_trust_roots():
     roots = []
     for name in CCA_ROOTS:
-        path = ROOT / name
+        path = CERTS_DIR / name
         if path.exists():
             roots.append(load_cert_from_pemder(str(path)))
     if not roots:
-        raise FileNotFoundError("CCA root certificates missing from project folder")
+        raise FileNotFoundError("CCA root certificates missing from certs/")
     return roots
 
 

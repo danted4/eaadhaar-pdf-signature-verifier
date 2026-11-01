@@ -54,11 +54,11 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
 echo "==> CCA India trust roots (bundled with this repo)"
-for cert in CCAIndia2022.cer CCAIndia2022SPL.cer; do
+for cert in certs/CCAIndia2022.cer certs/CCAIndia2022SPL.cer; do
   if [[ ! -f "$cert" ]]; then
     echo "Error: $cert not found." >&2
     echo "Download India PKI root certificates from https://cca.gov.in/root_certificate.html" >&2
-    echo "and place them in the project root, then re-run setup." >&2
+    echo "and place them in certs/, then re-run setup." >&2
     exit 1
   fi
   echo "    ✓ $cert"
