@@ -11,21 +11,26 @@ echo "==> eVerify setup"
 echo "    Project: $ROOT"
 echo
 
-# --- Python 3.10+ (python3, then python) ---
+# --- Python 3.10+ (python3, then python; skip a command that is too old) ---
 echo "==> Checking Python"
 PYTHON=""
-if python3 --version 2>/dev/null; then
-  PYTHON="python3"
-elif python --version 2>/dev/null; then
-  PYTHON="python"
-else
-  echo "Error: Python 3.10+ was not found (tried python3, then python)." >&2
-  echo "Install it from ${PYTHON_DOWNLOAD_URL} and re-run this script." >&2
-  exit 1
-fi
-
-if ! "$PYTHON" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
-  echo "Error: $($PYTHON --version 2>&1) is too old. Python 3.10+ is required." >&2
+SAW_PYTHON=""
+for cmd in python3 python; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    SAW_PYTHON=1
+    "$cmd" --version 2>/dev/null || true
+    if "$cmd" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+      PYTHON="$cmd"
+      break
+    fi
+  fi
+done
+if [[ -z "$PYTHON" ]]; then
+  if [[ -n "$SAW_PYTHON" ]]; then
+    echo "Error: Python is too old. Python 3.10+ is required." >&2
+  else
+    echo "Error: Python 3.10+ was not found (tried python3, then python)." >&2
+  fi
   echo "Install it from ${PYTHON_DOWNLOAD_URL} and re-run this script." >&2
   exit 1
 fi

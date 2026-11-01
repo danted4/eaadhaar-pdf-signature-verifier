@@ -141,7 +141,7 @@ setup.bat
 everify-app.bat
 ```
 
-> **Python note:** Setup tries `python3`, then `python`. If neither is Python 3.10+, install it from [python.org/downloads](https://www.python.org/downloads/). On Windows, tick **“Add python.exe to PATH”** during setup.
+> **Python note:** Setup tries `python3`, then `python`, and skips a command older than 3.10. If neither is Python 3.10+, install it from [python.org/downloads](https://www.python.org/downloads/). On Windows, tick **“Add python.exe to PATH”** during setup.
 
 ---
 
@@ -338,7 +338,7 @@ eaadhaar-pdf-signature-verifier/
 ├── app/
 │   ├── server.py          # Local HTTP server (127.0.0.1:8765)
 │   ├── verify.py          # pyHanko validation + widget geometry
-│   └── static/            # Viewer UI + stamp renderer
+│   └── static/            # Viewer UI, stamp renderer, vendored pdf.js 3.11.174
 ├── CCAIndia2022*.cer      # India PKI trust roots (public)
 ├── stamp-config.default.json
 ├── everify-app            # Launch viewer (macOS / Linux)
@@ -353,8 +353,9 @@ eaadhaar-pdf-signature-verifier/
 
 ## Security & privacy
 
-- **Local only** — server binds to `127.0.0.1`; PDF bytes stay on your machine  
-- **Sessions** expire after 30 minutes (in-memory decrypted copy for PDF.js preview)  
+- **Local only** — server binds to `127.0.0.1`; PDF bytes stay on your machine. The viewer does not load scripts from a CDN: **pdf.js 3.11.174** is vendored at `app/static/pdfjs/` (`pdf.min.js` and `pdf.worker.min.js`) and served from this process.  
+- **Offline after setup** — signature validation and PDF rendering do not require the public internet (no cdnjs or other remote script hosts). Setup still needs the network once to install Python packages.  
+- **Sessions** expire after 30 minutes (in-memory decrypted copy for the local pdf.js preview)  
 - **Validation** uses the **original uploaded bytes** (decrypt in memory only) so signature coverage stays intact  
 - **Do not commit real e-Aadhaar PDFs** to git (see `.gitignore`)  
 

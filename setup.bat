@@ -14,30 +14,30 @@ set "PYTHON="
 python3 --version >nul 2>&1
 if not errorlevel 1 (
   python3 --version
-  set "PYTHON=python3"
-  goto :have_python
+  python3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>&1
+  if not errorlevel 1 (
+    set "PYTHON=python3"
+    goto :have_python
+  )
 )
 
 python --version >nul 2>&1
 if not errorlevel 1 (
   python --version
-  set "PYTHON=python"
-  goto :have_python
+  python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>&1
+  if not errorlevel 1 (
+    set "PYTHON=python"
+    goto :have_python
+  )
 )
 
 echo Error: Python 3.10+ was not found (tried python3, then python).
+echo If a Python command exists, it is too old. Python 3.10+ is required.
 echo Install it from %PYTHON_DOWNLOAD_URL%
 echo During setup, tick "Add python.exe to PATH", then re-run setup.bat.
 exit /b 1
 
 :have_python
-"%PYTHON%" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>&1
-if errorlevel 1 (
-  echo Error: Python is too old. Python 3.10+ is required.
-  echo Install it from %PYTHON_DOWNLOAD_URL%
-  echo During setup, tick "Add python.exe to PATH", then re-run setup.bat.
-  exit /b 1
-)
 
 for /f "tokens=*" %%v in ('"%PYTHON%" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set PY_VER=%%v
 echo ==^> Using %PYTHON% (Python %PY_VER%^)

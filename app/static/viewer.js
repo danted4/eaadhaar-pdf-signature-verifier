@@ -1,4 +1,4 @@
-/* global pdfjsLib from CDN */
+/* global pdfjsLib */
 import {
   drawStamp,
   buildValidStream,
@@ -6,8 +6,7 @@ import {
   FORM_W,
 } from "./stamp-render.js";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.min.js";
 
 /** Locked stamp layout from stamp lab (version 4). */
 const STAMP_CONFIG = {
