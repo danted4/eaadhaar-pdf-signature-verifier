@@ -5,6 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-11-01
+
+### Added
+
+- Hermetic `unittest` suite for setup/launch scripts, HTTP handlers, CLI, and signature validation (synthetic CA; no real e-Aadhaar)
+- Vendored **pdf.js 3.11.174** under `app/static/pdfjs/` so preview does not load scripts from a CDN
+- `.gitattributes` so shell scripts stay LF and `.bat` files stay CRLF
+
+### Changed
+
+- Setup tries `python3`, then `python`, and skips a command older than 3.10
+- CLI verifier (`verify_aadhaar.py`) uses `app.verify.validate_uploaded_bytes` instead of a second validation loop
+- README documents local pdf.js, offline-after-setup, and the test command
+
+### Security
+
+- Reject upload `Content-Length` unless `0 <= length <= 20 MiB` (negative lengths no longer read until EOF)
+- Cap `/api/validate` JSON bodies at 64 KiB
+- Session store is mutex-protected; invalid ports and bind failures exit with a clear error
+
+### Fixed
+
+- `setup.sh` stored as CRLF could not parse on macOS/Linux
+- `everify-app.bat` reported exit code 0 when the Python process failed (`%ERRORLEVEL%` inside parentheses)
+
 ## [1.0.0] - 2026-08-29
 
 ### Added
@@ -41,4 +66,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `everify.py` monolithic entry point (use `./everify-app` instead)
 - Prototype stamp lab from the public repository (local dev only, gitignored)
 
+[2.3.1]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.1
 [1.0.0]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v1.0.0

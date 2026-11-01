@@ -1,5 +1,7 @@
 # e-Aadhaar PDF Signature Verifier
 
+**Current release: [v2.3.1](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.1)** · [Changelog](CHANGELOG.md)
+
 **Local e-Aadhaar (Aadhar) PDF digital signature validation** — pyHanko, CCA India 2022, Acrobat-style green tick. No upload. Not affiliated with UIDAI or Adobe.
 
 Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar PDF using India's **CCA PKI** trust roots. Everything runs **on your machine**. No cloud, no account.
@@ -30,6 +32,7 @@ Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar P
 - [Security & privacy](#security--privacy)
 - [Disclaimers](#disclaimers)
 - [Contributing](#contributing)
+- [Changelog](#changelog)
 - [License](#license)
 - [Star History](#star-history)
 
@@ -318,7 +321,7 @@ Public certificates from [India PKI / CCA](https://cca.gov.in/root_certificate.h
 | Green “Signature valid” appearance | Yes | Yes (custom renderer, stamp lab tuned) |
 | Modifies original PDF | No (validation is read-only) | No (overlay is canvas-only) |
 | Install size / cost | Large, often subscription | Small Python app, MIT license |
-| Runs offline | Yes | Yes (localhost only) |
+| Runs offline | Yes | Yes after setup (localhost; pdf.js is vendored) |
 | UIDAI authentication API | No | No |
 
 ---
@@ -345,7 +348,9 @@ eaadhaar-pdf-signature-verifier/
 ├── everify-app.bat        # Launch viewer (Windows)
 ├── setup.sh               # One-time setup (macOS / Linux)
 ├── setup.bat              # One-time setup (Windows)
-├── verify_aadhaar.py      # CLI verifier
+├── verify_aadhaar.py      # CLI verifier (uses app.verify)
+├── tests/                 # Hermetic unittest suite
+├── CHANGELOG.md
 └── requirements.txt
 ```
 
@@ -378,6 +383,16 @@ eaadhaar-pdf-signature-verifier/
 ## Contributing
 
 Issues and PRs welcome. Please **never** attach real e-Aadhaar PDFs, screenshots with Aadhaar numbers, or photos to issues or commits.
+
+After `./setup.sh` (or `setup.bat`), run:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.1**.
 
 ---
 
