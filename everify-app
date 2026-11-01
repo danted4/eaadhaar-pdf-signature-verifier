@@ -1,3 +1,19 @@
 #!/bin/bash
 DIR="$(cd "$(dirname "$0")" && pwd)"
-exec "$DIR/.venv/bin/python3" "$DIR/app/server.py" "$@"
+
+if [[ ! -d "$DIR/.venv" ]]; then
+  echo "Error: .venv not found. Run ./setup.sh first." >&2
+  exit 1
+fi
+
+if [[ -x "$DIR/.venv/bin/python3" ]]; then
+  exec "$DIR/.venv/bin/python3" "$DIR/app/server.py" "$@"
+fi
+
+if [[ -x "$DIR/.venv/bin/python" ]]; then
+  exec "$DIR/.venv/bin/python" "$DIR/app/server.py" "$@"
+fi
+
+echo "Error: Python was not found in .venv (tried python3, then python)." >&2
+echo "Run ./setup.sh first. If Python is missing, install it from https://www.python.org/downloads/" >&2
+exit 1

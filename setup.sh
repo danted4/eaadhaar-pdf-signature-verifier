@@ -5,23 +5,38 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
+PYTHON_DOWNLOAD_URL="https://www.python.org/downloads/"
+
 echo "==> eVerify setup"
 echo "    Project: $ROOT"
 echo
 
-# --- Python 3.10+ recommended ---
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "Error: python3 not found. Install Python 3.10+ and re-run." >&2
+# --- Python 3.10+ (python3, then python) ---
+echo "==> Checking Python"
+PYTHON=""
+if python3 --version 2>/dev/null; then
+  PYTHON="python3"
+elif python --version 2>/dev/null; then
+  PYTHON="python"
+else
+  echo "Error: Python 3.10+ was not found (tried python3, then python)." >&2
+  echo "Install it from ${PYTHON_DOWNLOAD_URL} and re-run this script." >&2
   exit 1
 fi
 
-PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-echo "==> Using Python $PY_VER"
+if ! "$PYTHON" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+  echo "Error: $($PYTHON --version 2>&1) is too old. Python 3.10+ is required." >&2
+  echo "Install it from ${PYTHON_DOWNLOAD_URL} and re-run this script." >&2
+  exit 1
+fi
+
+PY_VER="$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+echo "==> Using $PYTHON (Python $PY_VER)"
 
 # --- Virtual environment ---
 if [[ ! -d .venv ]]; then
   echo "==> Creating virtual environment (.venv)"
-  python3 -m venv .venv
+  "$PYTHON" -m venv .venv
 else
   echo "==> Virtual environment already exists"
 fi

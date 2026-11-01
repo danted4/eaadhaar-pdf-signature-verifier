@@ -104,7 +104,7 @@ All commands assume you have already cloned the repo and are inside the `eaadhaa
 
 | Task | macOS | Linux | Windows |
 |------|-------|-------|---------|
-| **Check Python** | `python3 --version` | `python3 --version` | `python --version` |
+| **Check Python** | `python3 --version` or `python --version` | `python3 --version` or `python --version` | `python3 --version` or `python --version` |
 | **One-time setup** | `chmod +x setup.sh && ./setup.sh` | `chmod +x setup.sh && ./setup.sh` | `setup.bat` |
 | **Start viewer** | `./everify-app` | `./everify-app` | `everify-app.bat` |
 | **Open UI** | http://127.0.0.1:8765/ | http://127.0.0.1:8765/ | http://127.0.0.1:8765/ |
@@ -141,7 +141,7 @@ setup.bat
 everify-app.bat
 ```
 
-> **Windows note:** Use `python` (not `python3`). If `python` is not found, install Python 3.10+ from [python.org](https://www.python.org/downloads/) and tick **“Add python.exe to PATH”** during setup.
+> **Python note:** Setup tries `python3`, then `python`. If neither is Python 3.10+, install it from [python.org/downloads](https://www.python.org/downloads/). On Windows, tick **“Add python.exe to PATH”** during setup.
 
 ---
 
@@ -181,7 +181,7 @@ e-Aadhaar PDF Verifier checks the **digital signature** UIDAI embedded in that P
 | **4** | Run setup: `setup.bat` |
 | **5** | Wait until you see **“Setup complete”** |
 
-If setup fails, ensure `python --version` (Windows) or `python3 --version` (macOS/Linux) is 3.10 or newer.
+If setup fails, run `python3 --version` or `python --version` and confirm it is 3.10 or newer. If neither command works, install Python from [python.org/downloads](https://www.python.org/downloads/).
 
 ---
 
@@ -232,7 +232,7 @@ This is the same **kind** of check Adobe Acrobat performs for “Signature valid
 | Problem | macOS / Linux | Windows |
 |---------|---------------|---------|
 | `Cannot reach the server` | Run `./everify-app` first | Run `everify-app.bat` first |
-| `python3` / `python` not found | Install Python 3.10+; use `python3` | Install from python.org; enable **Add to PATH**; use `python` |
+| `python3` / `python` not found | Install 3.10+ from [python.org/downloads](https://www.python.org/downloads/); setup tries `python3` then `python` | Same; tick **Add python.exe to PATH** |
 | `PDF is password-protected` / wrong password | Use UIDAI download password, not Aadhaar number | Same |
 | `No digital signature found` | File may not be a signed e-Aadhaar PDF | Same |
 | Preview shows `?` but won’t turn green | Click the signature box; read popup for **INVALID** | Same |
