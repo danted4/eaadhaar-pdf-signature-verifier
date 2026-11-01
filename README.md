@@ -31,6 +31,7 @@ Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar P
 - [Disclaimers](#disclaimers)
 - [Contributing](#contributing)
 - [License](#license)
+- [Star History](#star-history)
 
 ---
 
@@ -382,3 +383,9 @@ Issues and PRs welcome. Please **never** attach real e-Aadhaar PDFs, screenshots
 ## License
 
 [MIT](LICENSE)
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=danted4/eaadhaar-pdf-signature-verifier&type=Date)](https://star-history.com/#danted4/eaadhaar-pdf-signature-verifier&Date)
