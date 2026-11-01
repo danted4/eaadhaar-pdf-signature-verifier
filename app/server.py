@@ -21,14 +21,52 @@ sys.path.insert(0, str(ROOT))
 from verify import preview_pdf_bytes, validate_uploaded_bytes, verify_pdf_bytes  # noqa: E402
 
 SESSIONS: dict[str, dict] = {}
+SESSIONS_LOCK = threading.Lock()
 TTL_SECONDS = 30 * 60
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_JSON_BYTES = 64 * 1024
 
 
-def _purge():
+def parse_content_length(header_value: str | None, max_bytes: int = MAX_UPLOAD_BYTES) -> int:
+    raw = "0" if header_value is None or str(header_value).strip() == "" else str(header_value).strip()
+    try:
+        length = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid Content-Length") from None
+    if length < 0:
+        raise ValueError("Invalid Content-Length")
+    if length > max_bytes:
+        raise ValueError("File too large")
+    return length
+
+
+def parse_port(value: str) -> int:
+    try:
+        port = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid port: {value}") from None
+    if port < 0 or port > 65535:
+        raise ValueError(f"Invalid port: {value}")
+    return port
+
+
+def bind_server(port: int, server_class=ThreadingHTTPServer):
+    try:
+        return server_class(("127.0.0.1", port), Handler)
+    except OSError as exc:
+        raise OSError(f"Could not listen on 127.0.0.1:{port}: {exc}") from exc
+
+
+def _purge_unlocked():
     now = time.time()
     dead = [k for k, v in SESSIONS.items() if now - v["created"] > TTL_SECONDS]
     for k in dead:
         SESSIONS.pop(k, None)
+
+
+def _purge():
+    with SESSIONS_LOCK:
+        _purge_unlocked()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -82,11 +120,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/api/pdf/"):
             sid = path.rsplit("/", 1)[-1]
-            session = SESSIONS.get(sid)
+            with SESSIONS_LOCK:
+                _purge_unlocked()
+                session = SESSIONS.get(sid)
+                pdf = session["pdf"] if session else None
             if not session:
                 self._send(404, b"expired", "text/plain")
                 return
-            self._send(200, session["pdf"], "application/pdf")
+            self._send(200, pdf, "application/pdf")
             return
 
         self._send(404, b"not found", "text/plain")
@@ -108,9 +149,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def _read_multipart_pdf(self) -> tuple[str, bytes]:
-        length = int(self.headers.get("Content-Length", "0"))
-        if length > 20 * 1024 * 1024:
-            raise ValueError("File too large")
+        length = parse_content_length(self.headers.get("Content-Length"), MAX_UPLOAD_BYTES)
         content_type = self.headers.get("Content-Type", "")
         body = self.rfile.read(length)
         password, pdf_bytes = _parse_multipart(content_type, body)
@@ -131,12 +170,14 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         sid = uuid.uuid4().hex
-        SESSIONS[sid] = {
-            "pdf": result["viewBytes"],
-            "original": pdf_bytes,
-            "password": password or "",
-            "created": time.time(),
-        }
+        with SESSIONS_LOCK:
+            _purge_unlocked()
+            SESSIONS[sid] = {
+                "pdf": result["viewBytes"],
+                "original": pdf_bytes,
+                "password": password or "",
+                "created": time.time(),
+            }
         self._json(
             200,
             {
@@ -146,7 +187,12 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def _handle_validate(self):
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = parse_content_length(self.headers.get("Content-Length"), MAX_JSON_BYTES)
+        except ValueError as exc:
+            code = 413 if str(exc) == "File too large" else 400
+            self._json(code, {"error": str(exc)})
+            return
         body = self.rfile.read(length) if length else b"{}"
         try:
             payload = json.loads(body.decode("utf-8") or "{}")
@@ -154,19 +200,22 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "Invalid JSON"})
             return
         sid = payload.get("sessionId", "")
-        session = SESSIONS.get(sid)
+        with SESSIONS_LOCK:
+            _purge_unlocked()
+            session = SESSIONS.get(sid)
+            original = session["original"] if session else None
+            password = (session.get("password") or None) if session else None
         if not session:
             self._json(404, {"error": "Session expired — open the PDF again"})
             return
         try:
-            result = validate_uploaded_bytes(
-                session["original"],
-                session.get("password") or None,
-            )
+            result = validate_uploaded_bytes(original, password)
         except Exception as exc:
             self._json(400, {"error": str(exc)})
             return
-        session["validated"] = True
+        with SESSIONS_LOCK:
+            if sid in SESSIONS:
+                SESSIONS[sid]["validated"] = True
         self._json(
             200,
             {
@@ -182,18 +231,24 @@ class Handler(BaseHTTPRequestHandler):
         try:
             password, pdf_bytes = self._read_multipart_pdf()
             result = verify_pdf_bytes(pdf_bytes, password or None)
+        except ValueError as exc:
+            code = 413 if str(exc) == "File too large" else 400
+            self._json(code, {"error": str(exc)})
+            return
         except Exception as exc:
             self._json(400, {"error": str(exc)})
             return
 
         sid = uuid.uuid4().hex
-        SESSIONS[sid] = {
-            "pdf": result["viewBytes"],
-            "original": pdf_bytes,
-            "password": password or "",
-            "created": time.time(),
-            "validated": True,
-        }
+        with SESSIONS_LOCK:
+            _purge_unlocked()
+            SESSIONS[sid] = {
+                "pdf": result["viewBytes"],
+                "original": pdf_bytes,
+                "password": password or "",
+                "created": time.time(),
+                "validated": True,
+            }
         self._json(
             200,
             {
@@ -240,21 +295,32 @@ def _parse_multipart(content_type: str, body: bytes) -> tuple[str, bytes]:
     return password, pdf_bytes
 
 
-def main():
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     port = 8765
-    if len(sys.argv) > 1:
-        port = int(sys.argv[1])
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    url = f"http://127.0.0.1:{port}/"
+    if argv:
+        try:
+            port = parse_port(argv[0])
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+    try:
+        httpd = bind_server(port)
+    except OSError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    bound_port = httpd.server_address[1]
+    url = f"http://127.0.0.1:{bound_port}/"
     print(f"e-Aadhaar PDF Signature Verifier at {url}")
     print("Original PDF is never modified. Ctrl+C to quit.")
     threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
-        server.serve_forever()
+        httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nStopped.")
-        server.shutdown()
+        httpd.shutdown()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
