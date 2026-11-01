@@ -73,8 +73,10 @@ def seed_setup_project(project: Path, *, certs: bool = True) -> None:
     (project / "requirements.txt").write_text("placeholder\n", encoding="utf-8")
     (project / "everify-app").write_text("#!/bin/bash\necho stub-launcher\n", encoding="utf-8")
     if certs:
-        (project / "CCAIndia2022.cer").write_bytes(b"dummy-cert")
-        (project / "CCAIndia2022SPL.cer").write_bytes(b"dummy-cert")
+        certs_dir = project / "certs"
+        certs_dir.mkdir(parents=True, exist_ok=True)
+        (certs_dir / "CCAIndia2022.cer").write_bytes(b"dummy-cert")
+        (certs_dir / "CCAIndia2022SPL.cer").write_bytes(b"dummy-cert")
 
 
 def seed_launcher_project(project: Path) -> None:

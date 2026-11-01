@@ -89,8 +89,8 @@ class SetupShTests(unittest.TestCase):
         self.assertIn("python", names)
 
     def test_missing_trust_roots_fail_after_python_check(self) -> None:
-        (self.project / "CCAIndia2022.cer").unlink()
-        (self.project / "CCAIndia2022SPL.cer").unlink()
+        (self.project / "certs" / "CCAIndia2022.cer").unlink()
+        (self.project / "certs" / "CCAIndia2022SPL.cer").unlink()
         write_python_stub(self.stub_bin, "python3", "3.12")
         result = self._run()
         self.assertEqual(result.returncode, 1)
