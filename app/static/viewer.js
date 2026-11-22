@@ -182,11 +182,14 @@ function printDocument() {
 <link rel="stylesheet" href="/static/print-frame.css"></head><body></body></html>`);
   doc.close();
   const sheet = doc.querySelector("link[rel=stylesheet]");
+  // Without these rules the 600 DPI images print at natural size (a corner
+  // per sheet), so refuse to print rather than waste paper.
   const sheetReady = sheet.sheet
     ? Promise.resolve()
-    : new Promise((resolve) => {
+    : new Promise((resolve, reject) => {
         sheet.onload = resolve;
-        sheet.onerror = resolve;
+        sheet.onerror = () =>
+          reject(new Error("Could not load print styles. Is the app still running?"));
       });
 
   for (const canvas of canvases) {
@@ -206,10 +209,16 @@ function printDocument() {
   win.addEventListener("afterprint", cleanup);
 
   const startPrint = () => {
-    sheetReady.then(() => {
-      win.focus();
-      win.print();
-    });
+    sheetReady.then(
+      () => {
+        win.focus();
+        win.print();
+      },
+      (err) => {
+        cleanup();
+        showError(err);
+      },
+    );
   };
 
   const images = [...doc.images];

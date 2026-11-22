@@ -48,6 +48,22 @@ def _multipart(pdf_bytes: bytes, password: str = "") -> tuple[bytes, str]:
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+# Written out by hand (not imported from server) so a loosened policy fails.
+EXPECTED_CSP = {
+    "default-src": {"'self'"},
+    "script-src": {"'self'"},
+    "worker-src": {"'self'"},
+    "style-src": {"'self'"},
+    "img-src": {"'self'", "data:"},
+    "font-src": {"'self'"},
+    "connect-src": {"'self'"},
+    "object-src": {"'none'"},
+    "base-uri": {"'none'"},
+    "form-action": {"'none'"},
+    "frame-ancestors": {"'none'"},
+}
+
+
 def _parse_csp(header: str | None) -> dict[str, set[str]]:
     policy: dict[str, set[str]] = {}
     for part in (header or "").split(";"):
@@ -230,7 +246,6 @@ class HttpServerTests(unittest.TestCase):
             ("POST", "/api/validate", json.dumps({"sessionId": "nope"})),
             ("PUT", "/", ""),
         ]
-        unsafe = {"'unsafe-eval'", "'unsafe-inline'", "'wasm-unsafe-eval'", "'unsafe-hashes'"}
         for method, path, body in requests:
             conn = self._conn()
             try:
@@ -240,16 +255,9 @@ class HttpServerTests(unittest.TestCase):
             finally:
                 conn.close()
             with self.subTest(method=method, path=path, status=resp.status):
-                policy = _parse_csp(resp.getheader("Content-Security-Policy"))
-                self.assertEqual(policy.get("default-src"), {"'self'"})
-                self.assertEqual(policy.get("script-src"), {"'self'"})
-                self.assertEqual(policy.get("style-src"), {"'self'"})
-                self.assertEqual(policy.get("worker-src"), {"'self'"})
-                self.assertEqual(policy.get("object-src"), {"'none'"})
-                self.assertEqual(policy.get("base-uri"), {"'none'"})
-                self.assertEqual(policy.get("frame-ancestors"), {"'none'"})
-                for directive, sources in policy.items():
-                    self.assertFalse(sources & unsafe, f"{directive}: {sources & unsafe}")
+                # Whole-policy comparison: any added source (*, https:, blob:,
+                # 'unsafe-*') or loosened directive fails here.
+                self.assertEqual(_parse_csp(resp.getheader("Content-Security-Policy")), EXPECTED_CSP)
                 self.assertEqual(resp.getheader("X-Content-Type-Options"), "nosniff")
 
     def test_preview_and_validate_with_test_root(self) -> None:

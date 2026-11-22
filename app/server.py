@@ -28,8 +28,9 @@ MAX_JSON_BYTES = 64 * 1024
 
 # No 'unsafe-eval': a crafted PDF must not be able to run script on this page
 # (pdf.js CVE-2024-4367) and fake the green tick. No 'unsafe-inline' either:
-# the print iframe uses CSSOM and /static/print-frame.css. font-src data: is
-# only for pdf.js's legacy @font-face fallback.
+# the print iframe uses CSSOM and /static/print-frame.css. pdf.js loads fonts
+# with the FontFace API (binary data, not governed by font-src); its legacy
+# @font-face fallback needs a script-made <style>, which style-src blocks anyway.
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
@@ -37,7 +38,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "worker-src 'self'",
         "style-src 'self'",
         "img-src 'self' data:",
-        "font-src 'self' data:",
+        "font-src 'self'",
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'none'",
