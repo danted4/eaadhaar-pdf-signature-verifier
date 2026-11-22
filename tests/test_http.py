@@ -48,6 +48,15 @@ def _multipart(pdf_bytes: bytes, password: str = "") -> tuple[bytes, str]:
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+def _parse_csp(header: str | None) -> dict[str, set[str]]:
+    policy: dict[str, set[str]] = {}
+    for part in (header or "").split(";"):
+        tokens = part.split()
+        if tokens:
+            policy[tokens[0].lower()] = set(tokens[1:])
+    return policy
+
+
 class ParseHelpersTests(unittest.TestCase):
     def test_content_length_rejects_negative(self) -> None:
         with self.assertRaises(ValueError) as cm:
@@ -209,20 +218,39 @@ class HttpServerTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         self.assertGreater(len(data), 1000)
 
-    def test_csp_header_forbids_eval(self) -> None:
-        for path in ("/", "/static/pdfjs/pdf.min.js", "/api/pdf/not-a-session"):
+    def test_security_headers_on_every_response(self) -> None:
+        # (method, path, body): HTML, static JS, the pdf.js worker (its own
+        # response CSP governs eval inside the worker), a 404, a JSON error,
+        # and a stdlib send_error() page (501 for an unsupported method).
+        requests = [
+            ("GET", "/", None),
+            ("GET", "/static/pdfjs/pdf.min.js", None),
+            ("GET", "/static/pdfjs/pdf.worker.min.js", None),
+            ("GET", "/api/pdf/not-a-session", None),
+            ("POST", "/api/validate", json.dumps({"sessionId": "nope"})),
+            ("PUT", "/", ""),
+        ]
+        unsafe = {"'unsafe-eval'", "'unsafe-inline'", "'wasm-unsafe-eval'", "'unsafe-hashes'"}
+        for method, path, body in requests:
             conn = self._conn()
             try:
-                conn.request("GET", path)
+                conn.request(method, path, body=body, headers={"Content-Type": "application/json"})
                 resp = conn.getresponse()
                 resp.read()
             finally:
                 conn.close()
-            csp = resp.getheader("Content-Security-Policy") or ""
-            with self.subTest(path=path):
-                self.assertIn("script-src 'self'", csp)
-                self.assertNotIn("unsafe-eval", csp)
-                self.assertIn("object-src 'none'", csp)
+            with self.subTest(method=method, path=path, status=resp.status):
+                policy = _parse_csp(resp.getheader("Content-Security-Policy"))
+                self.assertEqual(policy.get("default-src"), {"'self'"})
+                self.assertEqual(policy.get("script-src"), {"'self'"})
+                self.assertEqual(policy.get("style-src"), {"'self'"})
+                self.assertEqual(policy.get("worker-src"), {"'self'"})
+                self.assertEqual(policy.get("object-src"), {"'none'"})
+                self.assertEqual(policy.get("base-uri"), {"'none'"})
+                self.assertEqual(policy.get("frame-ancestors"), {"'none'"})
+                for directive, sources in policy.items():
+                    self.assertFalse(sources & unsafe, f"{directive}: {sources & unsafe}")
+                self.assertEqual(resp.getheader("X-Content-Type-Options"), "nosniff")
 
     def test_preview_and_validate_with_test_root(self) -> None:
         body, ctype = _multipart(self.signed)

@@ -1,0 +1,6 @@
+/* Styles for the hidden print iframe built by printDocument() in viewer.js.
+   A file, not an inline <style>, because the CSP forbids inline styles. */
+@page { margin: 0; size: auto; }
+html, body { margin: 0; padding: 0; background: #fff; }
+img { width: 100%; height: auto; display: block; page-break-after: always; }
+img:last-child { page-break-after: auto; }

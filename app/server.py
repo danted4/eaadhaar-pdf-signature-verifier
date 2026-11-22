@@ -27,21 +27,22 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
 
 # No 'unsafe-eval': a crafted PDF must not be able to run script on this page
-# (pdf.js CVE-2024-4367) and fake the green tick. Inline styles are allowed for
-# the print iframe (doc.write <style>, which inherits this policy).
+# (pdf.js CVE-2024-4367) and fake the green tick. No 'unsafe-inline' either:
+# the print iframe uses CSSOM and /static/print-frame.css. font-src data: is
+# only for pdf.js's legacy @font-face fallback.
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
         "script-src 'self'",
-        "worker-src 'self' blob:",
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: blob:",
+        "worker-src 'self'",
+        "style-src 'self'",
+        "img-src 'self' data:",
         "font-src 'self' data:",
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'none'",
-        "frame-ancestors 'self'",
+        "frame-ancestors 'none'",
     ]
 )
 
@@ -89,6 +90,12 @@ def _purge():
 
 
 class Handler(BaseHTTPRequestHandler):
+    def end_headers(self):
+        # Every response, including stdlib send_error() pages, gets these.
+        self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        super().end_headers()
+
     def log_message(self, fmt, *args):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
@@ -97,7 +104,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         if extra:
             for k, v in extra.items():
                 self.send_header(k, v)

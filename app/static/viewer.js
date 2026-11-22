@@ -168,24 +168,26 @@ function printDocument() {
   const canvases = printSourceCanvases();
   if (!canvases.length) return;
 
+  // CSP has no 'unsafe-inline' for styles: use CSSOM for the iframe and a
+  // same-origin stylesheet (not an inline <style>) inside it.
   const iframe = document.createElement("iframe");
-  iframe.setAttribute(
-    "style",
-    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none",
-  );
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none";
   document.body.appendChild(iframe);
 
   const win = iframe.contentWindow;
   const doc = win.document;
   doc.open();
   doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>
-<style>
-@page { margin: 0; size: auto; }
-html, body { margin: 0; padding: 0; background: #fff; }
-img { width: 100%; height: auto; display: block; page-break-after: always; }
-img:last-child { page-break-after: auto; }
-</style></head><body></body></html>`);
+<link rel="stylesheet" href="/static/print-frame.css"></head><body></body></html>`);
   doc.close();
+  const sheet = doc.querySelector("link[rel=stylesheet]");
+  const sheetReady = sheet.sheet
+    ? Promise.resolve()
+    : new Promise((resolve) => {
+        sheet.onload = resolve;
+        sheet.onerror = resolve;
+      });
 
   for (const canvas of canvases) {
     const img = doc.createElement("img");
@@ -204,8 +206,10 @@ img:last-child { page-break-after: auto; }
   win.addEventListener("afterprint", cleanup);
 
   const startPrint = () => {
-    win.focus();
-    win.print();
+    sheetReady.then(() => {
+      win.focus();
+      win.print();
+    });
   };
 
   const images = [...doc.images];

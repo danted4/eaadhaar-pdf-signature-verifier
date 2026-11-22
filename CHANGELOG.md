@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Disable pdf.js eval (`isEvalSupported: false`) to close CVE-2024-4367, where a crafted font in a PDF could run script in the viewer and fake the green tick
-- Send a strict Content-Security-Policy on every response (`script-src 'self'`, no `'unsafe-eval'`), so the browser refuses eval even if pdf.js tried
+- Send a strict Content-Security-Policy on every response, including stdlib error pages (`script-src 'self'`, `style-src 'self'`, no `'unsafe-eval'` or `'unsafe-inline'`, `frame-ancestors 'none'`), so the browser refuses eval even if pdf.js tried
+- Send `X-Content-Type-Options: nosniff`, since `/api/pdf/<sid>` serves uploaded bytes
+
+### Changed
+
+- The print iframe loads `app/static/print-frame.css` and is styled through CSSOM instead of inline styles, which the CSP now blocks
 
 ## [2.3.2] - 2026-11-01
 
