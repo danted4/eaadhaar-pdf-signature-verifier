@@ -82,5 +82,6 @@ class PdfJsVendorTests(unittest.TestCase):
         self.assertIn("/static/print-frame.css", (STATIC / "viewer.js").read_text(encoding="utf-8"))
         self.assertTrue((STATIC / "print-frame.css").is_file())
 
+
 if __name__ == "__main__":
     unittest.main()
