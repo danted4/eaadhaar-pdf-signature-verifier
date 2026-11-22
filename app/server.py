@@ -26,6 +26,27 @@ TTL_SECONDS = 30 * 60
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
 
+# No 'unsafe-eval': a crafted PDF must not be able to run script on this page
+# (pdf.js CVE-2024-4367) and fake the green tick. No 'unsafe-inline' either:
+# the print iframe uses CSSOM and /static/print-frame.css. pdf.js loads fonts
+# with the FontFace API (binary data, not governed by font-src); its legacy
+# @font-face fallback needs a script-made <style>, which style-src blocks anyway.
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        "worker-src 'self'",
+        "style-src 'self'",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+        "frame-ancestors 'none'",
+    ]
+)
+
 
 def parse_content_length(header_value: str | None, max_bytes: int = MAX_UPLOAD_BYTES) -> int:
     raw = "0" if header_value is None or str(header_value).strip() == "" else str(header_value).strip()
@@ -70,6 +91,12 @@ def _purge():
 
 
 class Handler(BaseHTTPRequestHandler):
+    def end_headers(self):
+        # Every response, including stdlib send_error() pages, gets these.
+        self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        super().end_headers()
+
     def log_message(self, fmt, *args):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 

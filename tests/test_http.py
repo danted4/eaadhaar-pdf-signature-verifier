@@ -48,6 +48,31 @@ def _multipart(pdf_bytes: bytes, password: str = "") -> tuple[bytes, str]:
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+# Written out by hand (not imported from server) so a loosened policy fails.
+EXPECTED_CSP = {
+    "default-src": {"'self'"},
+    "script-src": {"'self'"},
+    "worker-src": {"'self'"},
+    "style-src": {"'self'"},
+    "img-src": {"'self'", "data:"},
+    "font-src": {"'self'"},
+    "connect-src": {"'self'"},
+    "object-src": {"'none'"},
+    "base-uri": {"'none'"},
+    "form-action": {"'none'"},
+    "frame-ancestors": {"'none'"},
+}
+
+
+def _parse_csp(header: str | None) -> dict[str, set[str]]:
+    policy: dict[str, set[str]] = {}
+    for part in (header or "").split(";"):
+        tokens = part.split()
+        if tokens:
+            policy[tokens[0].lower()] = set(tokens[1:])
+    return policy
+
+
 class ParseHelpersTests(unittest.TestCase):
     def test_content_length_rejects_negative(self) -> None:
         with self.assertRaises(ValueError) as cm:
@@ -208,6 +233,32 @@ class HttpServerTests(unittest.TestCase):
             conn.close()
         self.assertEqual(resp.status, 200)
         self.assertGreater(len(data), 1000)
+
+    def test_security_headers_on_every_response(self) -> None:
+        # (method, path, body): HTML, static JS, the pdf.js worker (its own
+        # response CSP governs eval inside the worker), a 404, a JSON error,
+        # and a stdlib send_error() page (501 for an unsupported method).
+        requests = [
+            ("GET", "/", None),
+            ("GET", "/static/pdfjs/pdf.min.js", None),
+            ("GET", "/static/pdfjs/pdf.worker.min.js", None),
+            ("GET", "/api/pdf/not-a-session", None),
+            ("POST", "/api/validate", json.dumps({"sessionId": "nope"})),
+            ("PUT", "/", ""),
+        ]
+        for method, path, body in requests:
+            conn = self._conn()
+            try:
+                conn.request(method, path, body=body, headers={"Content-Type": "application/json"})
+                resp = conn.getresponse()
+                resp.read()
+            finally:
+                conn.close()
+            with self.subTest(method=method, path=path, status=resp.status):
+                # Whole-policy comparison: any added source (*, https:, blob:,
+                # 'unsafe-*') or loosened directive fails here.
+                self.assertEqual(_parse_csp(resp.getheader("Content-Security-Policy")), EXPECTED_CSP)
+                self.assertEqual(resp.getheader("X-Content-Type-Options"), "nosniff")
 
     def test_preview_and_validate_with_test_root(self) -> None:
         body, ctype = _multipart(self.signed)

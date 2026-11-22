@@ -1,6 +1,6 @@
 # e-Aadhaar PDF Signature Verifier
 
-**Current release: [v2.3.2](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.2)** · [Changelog](CHANGELOG.md)
+**Current release: [v2.3.3](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.3)** · [Changelog](CHANGELOG.md)
 
 **Local e-Aadhaar (Aadhar) PDF digital signature validation**: pyHanko, CCA India 2022, Acrobat-style green tick. No upload. Not affiliated with UIDAI or Adobe.
 
@@ -361,6 +361,7 @@ eaadhaar-pdf-signature-verifier/
 ## Security & privacy
 
 - **Local only**: server binds to `127.0.0.1`; PDF bytes stay on your machine. The viewer does not load scripts from a CDN: **pdf.js 3.11.174** is vendored at `app/static/pdfjs/` (`pdf.min.js` and `pdf.worker.min.js`) and served from this process.  
+- **Script lockdown**: pdf.js runs with eval disabled (`isEvalSupported: false`, closing CVE-2024-4367), and the server sends a strict Content-Security-Policy (`script-src 'self'`, no `unsafe-eval`). A crafted PDF cannot run script in the viewer to fake the green tick.  
 - **Offline after setup**: signature validation and PDF rendering do not require the public internet (no cdnjs or other remote script hosts). Setup still needs the network once to install Python packages.  
 - **Sessions** expire after 30 minutes (in-memory decrypted copy for the local pdf.js preview)  
 - **Validation** uses the **original uploaded bytes** (decrypt in memory only) so signature coverage stays intact  
@@ -394,7 +395,7 @@ After `./setup.sh` (or `setup.bat`), run:
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.2**.
+See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.3**.
 
 ---
 

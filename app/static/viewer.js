@@ -168,24 +168,29 @@ function printDocument() {
   const canvases = printSourceCanvases();
   if (!canvases.length) return;
 
+  // CSP has no 'unsafe-inline' for styles: use CSSOM for the iframe and a
+  // same-origin stylesheet (not an inline <style>) inside it.
   const iframe = document.createElement("iframe");
-  iframe.setAttribute(
-    "style",
-    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none",
-  );
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none";
   document.body.appendChild(iframe);
 
   const win = iframe.contentWindow;
   const doc = win.document;
   doc.open();
   doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>
-<style>
-@page { margin: 0; size: auto; }
-html, body { margin: 0; padding: 0; background: #fff; }
-img { width: 100%; height: auto; display: block; page-break-after: always; }
-img:last-child { page-break-after: auto; }
-</style></head><body></body></html>`);
+<link rel="stylesheet" href="/static/print-frame.css"></head><body></body></html>`);
   doc.close();
+  const sheet = doc.querySelector("link[rel=stylesheet]");
+  // Without these rules the 600 DPI images print at natural size (a corner
+  // per sheet), so refuse to print rather than waste paper.
+  const sheetReady = sheet.sheet
+    ? Promise.resolve()
+    : new Promise((resolve, reject) => {
+        sheet.onload = resolve;
+        sheet.onerror = () =>
+          reject(new Error("Could not load print styles. Is the app still running?"));
+      });
 
   for (const canvas of canvases) {
     const img = doc.createElement("img");
@@ -204,8 +209,16 @@ img:last-child { page-break-after: auto; }
   win.addEventListener("afterprint", cleanup);
 
   const startPrint = () => {
-    win.focus();
-    win.print();
+    sheetReady.then(
+      () => {
+        win.focus();
+        win.print();
+      },
+      (err) => {
+        cleanup();
+        showError(err);
+      },
+    );
   };
 
   const images = [...doc.images];
@@ -334,7 +347,12 @@ async function openPreview(payload) {
   pagesEl.innerHTML = "";
   updateDocbar();
 
-  app.pdfDoc = await pdfjsLib.getDocument(`/api/pdf/${payload.sessionId}`).promise;
+  // isEvalSupported: false closes CVE-2024-4367 (font FontMatrix compiled via
+  // new Function). The server's CSP also forbids eval; keep both layers.
+  app.pdfDoc = await pdfjsLib.getDocument({
+    url: `/api/pdf/${payload.sessionId}`,
+    isEvalSupported: false,
+  }).promise;
   const renderScale = RENDER_SCALE();
 
   for (let i = 1; i <= app.pdfDoc.numPages; i++) {
