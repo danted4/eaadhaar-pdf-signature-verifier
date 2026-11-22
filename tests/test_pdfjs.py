@@ -26,6 +26,12 @@ class PdfJsVendorTests(unittest.TestCase):
         self.assertIn("/static/pdfjs/pdf.min.js", html)
         self.assertIn("/static/pdfjs/pdf.worker.min.js", js)
 
+    def test_viewer_disables_pdfjs_eval(self) -> None:
+        # CVE-2024-4367: pdf.js 3.11.174 compiles font matrices with eval
+        # unless isEvalSupported is false.
+        js = (REPO_ROOT / "app" / "static" / "viewer.js").read_text(encoding="utf-8")
+        self.assertIn("isEvalSupported: false", js)
+
 
 if __name__ == "__main__":
     unittest.main()

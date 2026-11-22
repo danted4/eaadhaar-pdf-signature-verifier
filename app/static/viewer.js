@@ -334,7 +334,12 @@ async function openPreview(payload) {
   pagesEl.innerHTML = "";
   updateDocbar();
 
-  app.pdfDoc = await pdfjsLib.getDocument(`/api/pdf/${payload.sessionId}`).promise;
+  // isEvalSupported: false closes CVE-2024-4367 (font FontMatrix compiled via
+  // new Function). The server's CSP also forbids eval; keep both layers.
+  app.pdfDoc = await pdfjsLib.getDocument({
+    url: `/api/pdf/${payload.sessionId}`,
+    isEvalSupported: false,
+  }).promise;
   const renderScale = RENDER_SCALE();
 
   for (let i = 1; i <= app.pdfDoc.numPages; i++) {

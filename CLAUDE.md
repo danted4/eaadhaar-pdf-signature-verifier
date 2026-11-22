@@ -56,6 +56,7 @@ The suite is hermetic: no network, no real `.venv`, no real Aadhaar.
 - `setup.sh` and `everify-app` must be LF; `.bat` files must be CRLF (`.gitattributes` enforces this; editors that rewrite line endings will fail `test_line_endings.py`).
 - Launchers try `python3` then `python` (sh) / `python.exe` then `python3.exe` (bat), require 3.10+, and the `.bat` launcher must propagate the exit code outside the `if` block (no `%ERRORLEVEL%` inside parentheses).
 - No CDN references: pdf.js must load from `/static/pdfjs/` (`test_pdfjs.py`).
+- `getDocument` must keep `isEvalSupported: false`, and the CSP sent by `Handler._send` must never gain `'unsafe-eval'` (`test_pdfjs.py`, `test_http.py`). Together they close CVE-2024-4367, a forged PDF faking the green tick. Inline styles are allowed only because the print iframe writes a `<style>` block.
 - Upload `Content-Length` must be `0..20 MiB`; `/api/validate` JSON bodies are capped at 64 KiB.
 
 ## Privacy

@@ -209,6 +209,21 @@ class HttpServerTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         self.assertGreater(len(data), 1000)
 
+    def test_csp_header_forbids_eval(self) -> None:
+        for path in ("/", "/static/pdfjs/pdf.min.js", "/api/pdf/not-a-session"):
+            conn = self._conn()
+            try:
+                conn.request("GET", path)
+                resp = conn.getresponse()
+                resp.read()
+            finally:
+                conn.close()
+            csp = resp.getheader("Content-Security-Policy") or ""
+            with self.subTest(path=path):
+                self.assertIn("script-src 'self'", csp)
+                self.assertNotIn("unsafe-eval", csp)
+                self.assertIn("object-src 'none'", csp)
+
     def test_preview_and_validate_with_test_root(self) -> None:
         body, ctype = _multipart(self.signed)
         conn = self._conn()

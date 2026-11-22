@@ -26,6 +26,25 @@ TTL_SECONDS = 30 * 60
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
 
+# No 'unsafe-eval': a crafted PDF must not be able to run script on this page
+# (pdf.js CVE-2024-4367) and fake the green tick. Inline styles are allowed for
+# the print iframe (doc.write <style>, which inherits this policy).
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        "worker-src 'self' blob:",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+        "frame-ancestors 'self'",
+    ]
+)
+
 
 def parse_content_length(header_value: str | None, max_bytes: int = MAX_UPLOAD_BYTES) -> int:
     raw = "0" if header_value is None or str(header_value).strip() == "" else str(header_value).strip()
@@ -78,6 +97,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         if extra:
             for k, v in extra.items():
                 self.send_header(k, v)
