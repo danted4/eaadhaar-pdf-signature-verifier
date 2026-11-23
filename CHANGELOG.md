@@ -11,12 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New look: a deep ink backdrop with soft colour glows, a solid top strip with a brand mark, a status pill and the release version (e.g. v2.3.6), richer verdict colours in the document bar (brown preview, blue valid, red invalid, a slate sheen while verifying), and a gentler verification popup. Motion is brief and turns off for people who prefer reduced motion
 - The upload card is a fixed-slot form (PDF file, Password, Preview) that never moves between states: the password field is enabled only when the chosen PDF needs one, which is detected in the browser before anything is uploaded, and Preview stays disabled until there is something to open
-- PDFs that only have an owner (permissions) password open without asking for one
+- PDFs that only have an owner (permissions) password open without asking for one, even if a password is typed
+- A file the browser can't check (damaged, or not a PDF) no longer pretends to need a password: the field becomes optional and Preview stays available
+- The file picker is reachable with the keyboard, the password hint is announced to screen readers, and upload errors are announced too
 - README shows screenshots of the app (personal details redacted)
 
 ### Fixed
 
 - With a signature that has no visible box, the bar title now says to click the page instead of the `?` mark
+- A file that isn't a readable PDF gets "This file isn't a readable PDF." instead of an internal qpdf message
+- A chosen file restored by the browser (reload, back/forward) is picked up instead of the card showing "No file chosen"
 
 ## [2.3.5] - 2026-11-23
 

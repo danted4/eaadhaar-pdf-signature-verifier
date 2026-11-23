@@ -128,6 +128,15 @@ class PdfJsVendorTests(unittest.TestCase):
         js = _strip_js_comments((STATIC / "viewer.js").read_text(encoding="utf-8"))
         self.assertIn('err?.name === "PasswordException"', js)
 
+    def test_upload_form_accessibility(self) -> None:
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<input type="password" id="password"[^>]*aria-describedby="passwordHint"')
+        self.assertRegex(html, r'<p id="passwordHint"[^>]*aria-live="polite"')
+        self.assertRegex(html, r'<p id="error"[^>]*role="alert"')
+        # display:none would take the file input out of the tab order.
+        css = (STATIC / "styles.css").read_text(encoding="utf-8")
+        self.assertNotRegex(css, r"\.file input \{[^}]*display:\s*none")
+
     def test_client_upload_cap_matches_server(self) -> None:
         import sys
 

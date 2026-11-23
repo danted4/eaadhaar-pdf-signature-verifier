@@ -206,10 +206,10 @@ Steps **2–10** are the same on every platform (browser UI). Only **step 1** (s
 |------|------------|---------------------|
 | **1** | Start the viewer (see platform table above) | Terminal prints the local URL |
 | **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | Upload screen |
-| **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears below the button |
-| **4** | Type your **PDF password** in the password field | |
+| **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears in the **PDF file** field; the app checks (in the browser) whether it needs a password |
+| **4** | Type the **PDF password** (first 4 letters of the name in CAPITALS + birth year, e.g. `NAME1990`) | The **Password** field is enabled only when the PDF needs one; otherwise it says no password is needed |
 | **5** | Click **Preview** | Document opens; brown bar asks you to click the **?** mark to verify |
-| **6** | Find the **yellow ?** signature box (top of the Aadhaar page) and **click it** | Brief “Verifying signature…” then a **verification popup** |
+| **6** | Find the **yellow ?** signature box (lower left of the Aadhaar page) and **click it** | Brief “Verifying signature…” then a **verification popup** |
 | **7** | Read the popup (signer, signing time, CCA trust chain, how validation works) | UIDAI signer, **CCA India 2022** trust anchor, integrity checks |
 | **8** | If valid → click **OK**. If invalid → click **Close** | Valid: blue bar + green **“Signature valid”** tick on the document |
 | **9** | (Optional) Click **Print** for a paper copy | Print uses the on-screen view with the green tick overlay |
@@ -256,7 +256,7 @@ This is the same **kind** of check Adobe Acrobat performs for “Signature valid
 ### Usage flow (diagram)
 
 1. **Choose PDF**: your password-protected e-Aadhaar file  
-2. Enter the **PDF password** (the one you set when downloading from UIDAI)  
+2. Enter the **PDF password** if asked (first 4 letters of the name in CAPITALS + birth year)  
 3. Click **Preview**: the document opens with the native **?** stamp from the file  
 4. **Click the ?** signature area: e-Aadhaar PDF Verifier validates locally and shows a details popup  
 5. Click **OK**: the green **Signature valid** stamp is drawn (canvas overlay only)  

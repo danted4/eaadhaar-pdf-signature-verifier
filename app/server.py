@@ -116,6 +116,10 @@ class Handler(BaseHTTPRequestHandler):
             name, port = host, ""
         return name in ("127.0.0.1", "localhost") and (port == "" or port.isdigit())
 
+    @staticmethod
+    def _index_html() -> bytes:
+        return (STATIC / "index.html").read_bytes().replace(b"__APP_VERSION__", APP_VERSION.encode())
+
     def _reject_foreign_host(self) -> bool:
         if self._host_allowed():
             return False
@@ -147,14 +151,16 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path in ("/", "/index.html"):
-            html = (STATIC / "index.html").read_bytes().replace(b"__APP_VERSION__", APP_VERSION.encode())
-            self._send(200, html, "text/html; charset=utf-8")
+            self._send(200, self._index_html(), "text/html; charset=utf-8")
             return
         if path.startswith("/static/"):
             name = path[len("/static/") :]
             file = STATIC / name
             if not file.resolve().is_relative_to(STATIC.resolve()) or not file.is_file():
                 self._send(404, b"not found", "text/plain")
+                return
+            if file.name == "index.html":  # same page as "/", version filled in
+                self._send(200, self._index_html(), "text/html; charset=utf-8")
                 return
             types = {".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml"}
             self._send(200, file.read_bytes(), types.get(file.suffix, "application/octet-stream"))

@@ -77,6 +77,10 @@ const PAGE_TITLE = document.title;
 const PRINT_STYLES_TIMEOUT_MS = 10000;
 /** Same cap as the server's MAX_UPLOAD_BYTES; checked before uploading. */
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+/** Room for the multipart envelope (boundaries, headers, password), which the
+ *  server counts in Content-Length on top of the file itself. */
+const MULTIPART_OVERHEAD = 16 * 1024;
+const fileTooBig = (file) => file.size + MULTIPART_OVERHEAD > MAX_UPLOAD_BYTES;
 const printStoreEl = () => document.getElementById("print-store");
 
 const form = document.getElementById("form");
@@ -148,19 +152,25 @@ const PASSWORD_HINTS = {
   idle: "Choose a PDF first.",
   checking: "Checking PDF…",
   needed: "Usually the first 4 letters of the name in CAPITALS plus the birth year, e.g. NAME1990.",
-  "not-needed": "No password needed: this PDF isn't protected.",
+  "not-needed": "No password needed to open this PDF.",
+  unknown: "Couldn't check this file. Enter its password if it has one.",
   "too-big": "This file is over the 20 MB limit.",
 };
 
+/** States in which the password field can be typed into. */
+const PASSWORD_EDITABLE = new Set(["needed", "unknown"]);
+
 function setPasswordState(state) {
   passwordState = state;
-  const needed = state === "needed";
+  const editable = PASSWORD_EDITABLE.has(state);
   passwordField.dataset.state = state;
-  passwordInput.disabled = !needed;
-  passwordInput.required = needed;
+  passwordInput.disabled = !editable;
+  passwordInput.required = state === "needed";
   passwordInput.placeholder = state === "not-needed" ? "Not needed" : "PDF password";
-  if (!needed) passwordInput.value = "";
+  if (!editable) passwordInput.value = "";
   passwordHint.textContent = PASSWORD_HINTS[state];
+  // The hint is one fixed line (it may be cut on narrow screens): full text on hover.
+  passwordHint.title = PASSWORD_HINTS[state];
   updatePreviewButton();
 }
 
@@ -174,32 +184,44 @@ async function onFileChosen() {
     setPasswordState("idle");
     return;
   }
-  if (file.size > MAX_UPLOAD_BYTES) {
+  if (fileTooBig(file)) {
     setPasswordState("too-big");
     showError(new Error("File too large. The limit is 20 MB."));
     return;
   }
   setPasswordState("checking");
-  let needs;
+  let state;
   try {
-    needs = await pdfNeedsPassword(file);
+    state = (await pdfNeedsPassword(file)) ? "needed" : "not-needed";
   } catch {
-    needs = true; // can't tell (damaged file?): ask for a password, the safe default
+    // Not a PDF pdf.js can read (damaged, or not a PDF at all): don't invent a
+    // password requirement. Let the user try, with or without one; the server
+    // gives the real error.
+    state = "unknown";
   }
   if (token !== fileCheckToken) return;
-  setPasswordState(needs ? "needed" : "not-needed");
-  (needs ? passwordInput : previewBtn).focus();
+  setPasswordState(state);
+  (state === "needed" ? passwordInput : previewBtn).focus();
 }
 
 /** Preview is always shown; it is enabled only when there is something to open. */
 function updatePreviewButton() {
   const ready =
     passwordState === "not-needed" ||
+    passwordState === "unknown" ||
     (passwordState === "needed" && passwordInput.value.length > 0);
   previewBtn.disabled = !ready;
 }
 
 passwordInput.addEventListener("input", updatePreviewButton);
+
+// Compute the form state once at load, and again when the page comes back from
+// the back/forward cache: browsers can restore a chosen file without firing
+// "change", which would leave the card showing "No file chosen".
+onFileChosen();
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) onFileChosen();
+});
 
 async function pdfNeedsPassword(file) {
   const data = new Uint8Array(await file.arrayBuffer());
@@ -222,11 +244,11 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   errorEl.hidden = true;
   const file = pdfInput.files[0];
-  const password = passwordState === "needed" ? passwordInput.value : "";
+  const password = PASSWORD_EDITABLE.has(passwordState) ? passwordInput.value : "";
   if (!file) return;
   // The server rejects bigger uploads without reading them and closes the
   // connection, which fetch can report as "Cannot reach the server".
-  if (file.size > MAX_UPLOAD_BYTES) {
+  if (fileTooBig(file)) {
     showError(new Error("File too large. The limit is 20 MB."));
     return;
   }

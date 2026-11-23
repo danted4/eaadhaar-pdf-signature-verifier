@@ -193,6 +193,28 @@ class VerifyTests(unittest.TestCase):
         pikepdf.open(BytesIO(self.signed)).save(buf, encryption=pikepdf.Encryption(owner="owner-only", user="", R=6))
         widgets = verify.preview_pdf_bytes(buf.getvalue(), None)["widgets"]
         self.assertEqual(len(widgets), 1)
+        # A typed (unneeded) password must not turn into "Incorrect password":
+        # pikepdf ignores it, and pyHanko must agree.
+        for typed in ("", "junk", "owner-only"):
+            with self.subTest(typed=typed):
+                self.assertEqual(len(verify.preview_pdf_bytes(buf.getvalue(), typed)["widgets"]), 1)
+
+    def test_real_user_password_still_enforced(self) -> None:
+        for typed, message in ((None, "password-protected"), ("", "password-protected"), ("wrong", "Incorrect password")):
+            with self.subTest(typed=typed):
+                with self.assertRaises(ValueError) as cm:
+                    verify.preview_pdf_bytes(self.encrypted, typed)
+                self.assertIn(message, str(cm.exception))
+        self.assertEqual(len(verify.preview_pdf_bytes(self.encrypted, PASSWORD)["widgets"]), 1)
+
+    def test_not_a_pdf_gives_a_plain_message(self) -> None:
+        # qpdf's raw message names internal objects; users get a plain sentence.
+        for junk in (b"this is not a pdf at all\n", b"%PDF-1.7\ngarbage"):
+            with self.subTest(junk=junk[:10]):
+                with self.assertRaises(ValueError) as cm:
+                    verify.preview_pdf_bytes(junk, None)
+                self.assertEqual(str(cm.exception), verify.NOT_A_PDF)
+                self.assertNotIn("0x", str(cm.exception))
 
     def test_wrong_password(self) -> None:
         with self.assertRaises(ValueError) as cm:

@@ -82,6 +82,17 @@ class VersionTests(unittest.TestCase):
         self.assertIsNotNone(match, "README 'Current release' line not found")
         self.assertEqual(server.APP_VERSION, match.group(1))
 
+    def test_app_version_matches_latest_changelog_release(self) -> None:
+        # While a release is being prepared the top section is [Unreleased];
+        # once it is cut, the newest version heading must equal APP_VERSION.
+        import re
+
+        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        top = re.search(r"^## \[([^\]]+)\]", changelog, re.M)
+        self.assertIsNotNone(top, "no CHANGELOG section heading found")
+        if top.group(1) != "Unreleased":
+            self.assertEqual(server.APP_VERSION, top.group(1))
+
 
 class ParseHelpersTests(unittest.TestCase):
     def test_content_length_rejects_negative(self) -> None:
@@ -275,15 +286,17 @@ class HttpServerTests(unittest.TestCase):
                 self.assertEqual(self._status_with_host("GET", "/", host), 200)
 
     def test_index_shows_release_version(self) -> None:
-        conn = self._conn()
-        try:
-            conn.request("GET", "/")
-            resp = conn.getresponse()
-            html = resp.read().decode("utf-8")
-        finally:
-            conn.close()
-        self.assertIn(f"v{server.APP_VERSION}</span>", html)
-        self.assertNotIn("__APP_VERSION__", html)
+        for path in ("/", "/index.html", "/static/index.html"):
+            conn = self._conn()
+            try:
+                conn.request("GET", path)
+                resp = conn.getresponse()
+                html = resp.read().decode("utf-8")
+            finally:
+                conn.close()
+            with self.subTest(path=path):
+                self.assertIn(f"v{server.APP_VERSION}</span>", html)
+                self.assertNotIn("__APP_VERSION__", html)
 
     def test_static_path_traversal(self) -> None:
         conn = self._conn()

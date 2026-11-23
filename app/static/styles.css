@@ -179,6 +179,7 @@ form { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
 
 /* File field: looks like an input; the whole box opens the picker. */
 .file {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -192,7 +193,16 @@ form { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
 }
 .file:hover { border-color: #b9c4f3; background: #fff; }
 .file:focus-within { outline: 3px solid rgba(79, 107, 237, 0.35); outline-offset: 1px; }
-.file input { display: none; }
+/* Visually hidden but still focusable, so Tab reaches the picker (Enter or
+   Space opens it) and .file:focus-within shows the focus ring. */
+.file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
 .file-icon {
   position: relative;
   width: 16px;

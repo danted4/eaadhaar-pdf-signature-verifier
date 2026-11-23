@@ -72,4 +72,4 @@ The suite is hermetic: no network, no real `.venv`, no real Aadhaar.
 
 ## Releases
 
-Version lives in the README header line, the README "Changelog" section, and `CHANGELOG.md` (Keep a Changelog format with link refs at the bottom). Update all three together.
+Version lives in four places: the README header line, the README "Changelog" section, `CHANGELOG.md` (Keep a Changelog format with link refs at the bottom) and `APP_VERSION` in `app/server.py` (the header pill). Update all four together; `test_http.py` checks APP_VERSION against the README and the newest CHANGELOG release.

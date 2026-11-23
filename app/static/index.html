@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>e-Aadhaar PDF Signature Verifier</title>
-  <link rel="stylesheet" href="/static/styles.css?v=17">
+  <link rel="stylesheet" href="/static/styles.css?v=18">
   <script src="/static/pdfjs/pdf.min.js"></script>
 </head>
 <body>
@@ -39,12 +39,12 @@
       </div>
       <div class="field" id="passwordField">
         <label for="password" class="field-label">Password</label>
-        <input type="password" id="password" placeholder="PDF password" autocomplete="off" disabled>
-        <p id="passwordHint" class="field-hint">Choose a PDF first.</p>
+        <input type="password" id="password" placeholder="PDF password" autocomplete="off" aria-describedby="passwordHint" disabled>
+        <p id="passwordHint" class="field-hint" aria-live="polite">Choose a PDF first.</p>
       </div>
       <button type="submit" id="previewBtn" class="preview-btn" disabled>Preview</button>
     </form>
-    <p id="error" class="error" hidden></p>
+    <p id="error" class="error" role="alert" hidden></p>
     <ul class="trust" aria-label="How this works">
       <li>Runs on this computer</li>
       <li>Original PDF unchanged</li>
@@ -87,6 +87,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/viewer.js?v=35"></script>
+  <script type="module" src="/static/viewer.js?v=36"></script>
 </body>
 </html>
