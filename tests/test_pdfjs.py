@@ -97,6 +97,23 @@ class PdfJsVendorTests(unittest.TestCase):
         # makes screen readers announce them.
         html = (STATIC / "index.html").read_text(encoding="utf-8")
         self.assertRegex(html, r'<div id="docbar-alert"[^>]*\brole="alert"[^>]*\bhidden\b')
+        # .docbar-sub styles the verdict/reason line above the alert.
+        self.assertIn('id="docbar-sub" class="docbar-sub"', html)
+
+    def test_client_upload_cap_matches_server(self) -> None:
+        import sys
+
+        sys.path.insert(0, str(REPO_ROOT / "app"))
+        import server  # noqa: E402
+
+        js = (STATIC / "viewer.js").read_text(encoding="utf-8")
+        match = re.search(r"const MAX_UPLOAD_BYTES = ([\d\s*]+);", js)
+        self.assertIsNotNone(match, "MAX_UPLOAD_BYTES not found in viewer.js")
+        factors = [int(f) for f in match.group(1).split("*")]
+        product = 1
+        for f in factors:
+            product *= f
+        self.assertEqual(product, server.MAX_UPLOAD_BYTES)
 
 
 if __name__ == "__main__":

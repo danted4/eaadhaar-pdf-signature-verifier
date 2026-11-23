@@ -223,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length) if length else b"{}"
         try:
             payload = json.loads(body.decode("utf-8") or "{}")
-        except ValueError:  # JSONDecodeError and UnicodeDecodeError
+        except (ValueError, RecursionError):  # bad JSON, non-UTF-8, absurd nesting
             self._json(400, {"error": "Invalid JSON"})
             return
         sid = payload.get("sessionId", "") if isinstance(payload, dict) else None

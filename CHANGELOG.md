@@ -12,13 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Errors after a PDF is open are now visible. Session expiry, a stopped server, validation errors, a PDF that pdf.js cannot display, and print failures show as an amber line in the top bar instead of silently resetting it. The bar keeps its verdict colour, so an app error is never mistaken for an invalid signature
 - An INVALID result no longer names "CCA India 2022" as the trust anchor when no chain to it was established; it shows "Not established"
 - `/api/validate` returns 400 for a body that is not a JSON object, has a non-string `sessionId`, or is not UTF-8, instead of dropping the connection
-- Clicking Print repeatedly no longer leaves the page title blank or stacks print frames
+- Print can no longer get stuck: repeated clicks, an error while preparing the print, or opening another PDF mid-print no longer leave the title blank, a print frame attached, or the button dead
+- Print uses the 600 DPI copy only once every page is in it, so a multi-page PDF is never printed partially
+- A slow reply for a PDF that was already closed ("Open another") is ignored instead of being shown on the next document
+- An oversized upload says "File too large" instead of "Cannot reach the server"
 - "Cannot reach the server" is now detected in every browser (Safari reported its raw "Load failed")
-- The "?" in the preview bar icon is centred
+- The "?" in the preview bar icon is centred, and the bar's sub-line gets its intended smaller style
 
 ### Changed
 
-- An INVALID result shows one short reason in the popup and the bar, e.g. "Reason: signer certificate expired (2029-02-03)" or "Reason: document changed after signing". The API report gains a `failureReason` field
+- An INVALID result shows one short reason in the popup and the bar, e.g. "Reason: signer certificate expired (2029-02-03)", "Reason: a certificate in the chain expired (...)" or "Reason: document changed after signing". Dates are in the computer's local time zone. The API report gains a `failureReason` field
 - The session-expired message says what to do: click "Open another" and open the PDF again
 - No em dashes in UI text
 
@@ -102,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `everify.py` monolithic entry point (use `./everify-app` instead)
 - Prototype stamp lab from the public repository (local dev only, gitignored)
 
+[Unreleased]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/compare/v2.3.3...HEAD
 [2.3.3]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.3
 [2.3.2]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.2
 [2.3.1]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.1

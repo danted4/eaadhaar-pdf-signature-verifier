@@ -65,8 +65,16 @@ const RENDER_SCALE = () =>
 const PRINT_RENDER_SCALE = 600 / 72;
 
 let printBuildToken = 0;
+/** True once the 600 DPI print copy holds every page (see printSourceCanvases). */
+let printStoreComplete = false;
 /** True from a Print click until print() returns or fails; blocks re-entry. */
 let printing = false;
+/** Bumped by each print and by resetApp, so a stale print never opens. */
+let printToken = 0;
+/** The real title; a print whose afterprint never fires must not leave " ". */
+const PAGE_TITLE = document.title;
+/** Same cap as the server's MAX_UPLOAD_BYTES; checked before uploading. */
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 const printStoreEl = () => document.getElementById("print-store");
 
 const form = document.getElementById("form");
@@ -131,6 +139,12 @@ form.addEventListener("submit", async (event) => {
   const file = pdfInput.files[0];
   const password = document.getElementById("password").value;
   if (!file) return;
+  // The server rejects bigger uploads without reading them and closes the
+  // connection, which fetch can report as "Cannot reach the server".
+  if (file.size > MAX_UPLOAD_BYTES) {
+    showError(new Error("File too large. The limit is 20 MB."));
+    return;
+  }
 
   const data = new FormData();
   data.append("pdf", file);
@@ -187,91 +201,108 @@ async function fetchJson(url, options, fallbackError) {
 
 function printSourceCanvases() {
   const store = printStoreEl();
-  if (store?.children.length) {
+  // Use the 600 DPI copy only once it holds every page; while it is still
+  // building (or if building failed) print the on-screen pages instead.
+  if (printStoreComplete && store?.children.length) {
     return [...store.querySelectorAll("canvas")];
   }
   return [...pagesEl.querySelectorAll("canvas")];
 }
 
+/** Remove print frames left behind (e.g. afterprint never fired) and the blank title. */
+function removePrintFrames() {
+  document.querySelectorAll("iframe[data-print-frame]").forEach((frame) => frame.remove());
+  document.title = PAGE_TITLE;
+}
+
 function printDocument() {
   const canvases = printSourceCanvases();
   if (!canvases.length) return;
+  removePrintFrames();
+  const token = ++printToken;
   printing = true;
 
-  // CSP has no 'unsafe-inline' for styles: use CSSOM for the iframe and a
-  // same-origin stylesheet (not an inline <style>) inside it.
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText =
-    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none";
-  document.body.appendChild(iframe);
-
-  const win = iframe.contentWindow;
-  const doc = win.document;
-  doc.open();
-  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>
-<link rel="stylesheet" href="/static/print-frame.css"></head><body></body></html>`);
-  doc.close();
-  const sheet = doc.querySelector("link[rel=stylesheet]");
-  // Without these rules the 600 DPI images print at natural size (a corner
-  // per sheet), so refuse to print rather than waste paper.
-  const sheetReady = sheet.sheet
-    ? Promise.resolve()
-    : new Promise((resolve, reject) => {
-        sheet.onload = resolve;
-        sheet.onerror = () =>
-          reject(new Error("Could not load print styles. Is the app still running?"));
-      });
-
-  for (const canvas of canvases) {
-    const img = doc.createElement("img");
-    img.src = canvas.toDataURL("image/png");
-    doc.body.appendChild(img);
-  }
-
-  const prevTitle = document.title;
-  document.title = " ";
-
+  let iframe = null;
+  let win = null;
   const cleanup = () => {
-    printing = false;
-    document.title = prevTitle;
-    iframe.remove();
-    win.removeEventListener("afterprint", cleanup);
+    if (token === printToken) printing = false;
+    document.title = PAGE_TITLE;
+    iframe?.remove();
+    win?.removeEventListener("afterprint", cleanup);
   };
-  win.addEventListener("afterprint", cleanup);
-
-  const startPrint = () => {
-    sheetReady.then(
-      () => {
-        win.focus();
-        win.print();
-        // print() returns once the dialog is up or closed; afterprint may
-        // never fire in some browsers, so don't leave Print locked.
-        printing = false;
-      },
-      (err) => {
-        cleanup();
-        showError(err);
-      },
-    );
+  const fail = (err) => {
+    cleanup();
+    const msg = err?.message || String(err);
+    showError(new Error(msg.startsWith("Could not") ? msg : `Could not print: ${msg}`));
   };
 
-  const images = [...doc.images];
-  if (!images.length) {
-    startPrint();
-    return;
-  }
+  // Any throw here (doc.write, a huge toDataURL, ...) must not leave Print
+  // locked, the title blank, or a frame attached.
+  try {
+    // CSP has no 'unsafe-inline' for styles: use CSSOM for the iframe and a
+    // same-origin stylesheet (not an inline <style>) inside it.
+    iframe = document.createElement("iframe");
+    iframe.dataset.printFrame = "";
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none";
+    document.body.appendChild(iframe);
 
-  let pending = images.length;
-  const done = () => {
-    pending -= 1;
-    if (pending === 0) startPrint();
-  };
-  for (const img of images) {
-    if (img.complete) done();
-    else {
-      img.onload = done;
-      img.onerror = done;
+    win = iframe.contentWindow;
+    const doc = win.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title>
+<link rel="stylesheet" href="/static/print-frame.css"></head><body></body></html>`);
+    doc.close();
+    const sheet = doc.querySelector("link[rel=stylesheet]");
+    if (!sheet) throw new Error("Could not prepare the print view.");
+    // Without these rules the 600 DPI images print at natural size (a corner
+    // per sheet), so refuse to print rather than waste paper.
+    const sheetReady = sheet.sheet
+      ? Promise.resolve()
+      : new Promise((resolve, reject) => {
+          sheet.onload = resolve;
+          sheet.onerror = () =>
+            reject(new Error("Could not load print styles. Is the app still running?"));
+        });
+
+    for (const canvas of canvases) {
+      const img = doc.createElement("img");
+      img.src = canvas.toDataURL("image/png");
+      doc.body.appendChild(img);
     }
+    const imagesReady = Promise.all(
+      [...doc.images].map((img) =>
+        img.complete
+          ? null
+          : new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            }),
+      ),
+    );
+
+    document.title = " ";
+    win.addEventListener("afterprint", cleanup);
+
+    Promise.all([sheetReady, imagesReady])
+      .then(() => {
+        if (token !== printToken) {
+          // "Open another" or a newer print happened while we waited.
+          cleanup();
+          return;
+        }
+        try {
+          win.focus();
+          win.print();
+        } finally {
+          // print() returns once the dialog is up or closed; afterprint may
+          // never fire in some browsers, so don't leave Print locked.
+          if (token === printToken) printing = false;
+        }
+      })
+      .catch(fail);
+  } catch (err) {
+    fail(err);
   }
 }
 
@@ -313,6 +344,8 @@ function resetApp() {
   app.sheets = [];
   app.pendingValidation = null;
   printing = false;
+  printToken += 1;
+  removePrintFrames();
   clearPrintStore();
   clearAlert();
   hideValidationModal();
@@ -320,6 +353,7 @@ function resetApp() {
 
 function clearPrintStore() {
   printBuildToken += 1;
+  printStoreComplete = false;
   printStoreEl()?.replaceChildren();
 }
 
@@ -327,7 +361,9 @@ function schedulePrintStore() {
   printBuildToken += 1;
   const token = printBuildToken;
   const run = () => {
-    buildPrintStore(token).catch(() => {});
+    // A failed build leaves printStoreComplete false, so Print falls back to
+    // the on-screen pages: still complete, just at screen resolution.
+    buildPrintStore(token).catch((err) => console.warn("Print copy not built:", err));
   };
   if (typeof requestIdleCallback === "function") {
     requestIdleCallback(run, { timeout: 3000 });
@@ -339,6 +375,7 @@ function schedulePrintStore() {
 async function buildPrintStore(token) {
   const store = printStoreEl();
   if (!store || !app.pdfDoc || !app.validated || token !== printBuildToken) return;
+  printStoreComplete = false;
   store.replaceChildren();
 
   for (const sheet of app.sheets) {
@@ -362,6 +399,7 @@ async function buildPrintStore(token) {
     wrap.appendChild(canvas);
     store.appendChild(wrap);
   }
+  if (token === printBuildToken) printStoreComplete = true;
 }
 
 function updateDocbar() {
@@ -414,6 +452,8 @@ async function openPreview(payload) {
   try {
     await renderPreviewPages(payload.sessionId);
   } catch (err) {
+    // "Open another" (or a newer PDF) while this one was loading: drop it.
+    if (app.sessionId !== payload.sessionId) return;
     throw new Error(`Could not display this PDF: ${err?.message || err}`);
   }
 }
@@ -421,14 +461,19 @@ async function openPreview(payload) {
 async function renderPreviewPages(sessionId) {
   // isEvalSupported: false closes CVE-2024-4367 (font FontMatrix compiled via
   // new Function). The server's CSP also forbids eval; keep both layers.
-  app.pdfDoc = await pdfjsLib.getDocument({
+  const pdfDoc = await pdfjsLib.getDocument({
     url: `/api/pdf/${sessionId}`,
     isEvalSupported: false,
   }).promise;
+  // Every await below can outlive "Open another"; stop if this PDF is gone.
+  const stale = () => app.sessionId !== sessionId;
+  if (stale()) return;
+  app.pdfDoc = pdfDoc;
   const renderScale = RENDER_SCALE();
 
-  for (let i = 1; i <= app.pdfDoc.numPages; i++) {
-    const page = await app.pdfDoc.getPage(i);
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    if (stale()) return;
     const viewport = page.getViewport({ scale: renderScale });
     const displayVp = page.getViewport({ scale: DISPLAY_SCALE });
     const wrap = document.createElement("div");
@@ -447,6 +492,7 @@ async function renderPreviewPages(sessionId) {
     app.sheets.push(sheet);
 
     await renderSheet(sheet);
+    if (stale()) return;
     bindSheetClicks(sheet);
   }
 }
@@ -517,6 +563,7 @@ async function runValidation() {
   app.validating = true;
   clearAlert();
   updateDocbar();
+  const sid = app.sessionId;
 
   try {
     const payload = await fetchJson(
@@ -524,15 +571,19 @@ async function runValidation() {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: app.sessionId }),
+        body: JSON.stringify({ sessionId: sid }),
       },
       "Validation failed",
     );
+    // The user may have opened another PDF meanwhile: never apply this
+    // verdict (or its error) to a different document.
+    if (app.sessionId !== sid) return;
     app.validating = false;
     app.pendingValidation = payload;
     updateDocbar();
     showValidationModal(payload);
   } catch (err) {
+    if (app.sessionId !== sid) return;
     app.validating = false;
     updateDocbar();
     showError(err);
