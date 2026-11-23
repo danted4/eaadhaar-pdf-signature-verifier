@@ -73,6 +73,8 @@ let printing = false;
 let printToken = 0;
 /** The real title; a print whose afterprint never fires must not leave " ". */
 const PAGE_TITLE = document.title;
+/** A print stylesheet that neither loads nor errors (hung server) gives up after this. */
+const PRINT_STYLES_TIMEOUT_MS = 10000;
 /** Same cap as the server's MAX_UPLOAD_BYTES; checked before uploading. */
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 const printStoreEl = () => document.getElementById("print-store");
@@ -224,14 +226,23 @@ function printDocument() {
 
   let iframe = null;
   let win = null;
+  let cleanedUp = false;
+  // Where afterprint never fires, restore the title and drop the frame on the
+  // user's next click or key press instead of leaving " " in the tab.
+  const onNextInteraction = () => cleanup();
   const cleanup = () => {
+    cleanedUp = true;
     if (token === printToken) printing = false;
     document.title = PAGE_TITLE;
     iframe?.remove();
     win?.removeEventListener("afterprint", cleanup);
+    document.removeEventListener("pointerdown", onNextInteraction, true);
+    document.removeEventListener("keydown", onNextInteraction, true);
   };
   const fail = (err) => {
     cleanup();
+    // A print superseded by "Open another" or a newer print fails quietly.
+    if (token !== printToken) return;
     const msg = err?.message || String(err);
     showError(new Error(msg.startsWith("Could not") ? msg : `Could not print: ${msg}`));
   };
@@ -260,10 +271,22 @@ function printDocument() {
     const sheetReady = sheet.sheet
       ? Promise.resolve()
       : new Promise((resolve, reject) => {
-          sheet.onload = resolve;
-          sheet.onerror = () =>
+          const stylesFailed = () =>
             reject(new Error("Could not load print styles. Is the app still running?"));
+          // A hung server never fires load or error; don't leave Print locked.
+          const timer = setTimeout(stylesFailed, PRINT_STYLES_TIMEOUT_MS);
+          sheet.onload = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          sheet.onerror = () => {
+            clearTimeout(timer);
+            stylesFailed();
+          };
         });
+    // Real handling is the Promise.all below; this only keeps a rejection from
+    // being "unhandled" if the canvas loop throws before that is attached.
+    sheetReady.catch(() => {});
 
     for (const canvas of canvases) {
       const img = doc.createElement("img");
@@ -294,6 +317,10 @@ function printDocument() {
         try {
           win.focus();
           win.print();
+          if (!cleanedUp) {
+            document.addEventListener("pointerdown", onNextInteraction, { capture: true, once: true });
+            document.addEventListener("keydown", onNextInteraction, { capture: true, once: true });
+          }
         } finally {
           // print() returns once the dialog is up or closed; afterprint may
           // never fire in some browsers, so don't leave Print locked.
@@ -386,6 +413,8 @@ async function buildPrintStore(token) {
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d");
     await sheet.page.render({ canvasContext: ctx, viewport }).promise;
+    // "Open another" may have cleared the store while this page rendered.
+    if (token !== printBuildToken) return;
 
     if (app.valid) {
       for (const widget of app.widgets) {
@@ -548,14 +577,20 @@ function hitWidget(event, canvas, viewport, pageIndex) {
   return false;
 }
 
+/**
+ * Widget rectangle in canvas pixels. pdf.js's viewport transform handles
+ * CropBox offsets, a MediaBox that doesn't start at 0,0, and /Rotate. For an
+ * e-Aadhaar page (MediaBox at 0,0, no CropBox, no rotation) it equals the
+ * earlier x * scale, (pageH - y) * scale maths, so the tuned stamp stays put.
+ */
 function widgetCanvasRect(widget, viewport) {
-  const [x1, y1, x2, y2] = widget.rect;
-  const [, , , pageH] = widget.mediaBox;
-  const sx = viewport.width / viewport.viewBox[2];
-  const sy = viewport.height / viewport.viewBox[3];
-  const [left, top] = pdfToCanvas(x1, y2, pageH, sx, sy);
-  const [right, bottom] = pdfToCanvas(x2, y1, pageH, sx, sy);
-  return { left, top, right, bottom };
+  const [ax, ay, bx, by] = viewport.convertToViewportRectangle(widget.rect);
+  return {
+    left: Math.min(ax, bx),
+    top: Math.min(ay, by),
+    right: Math.max(ax, bx),
+    bottom: Math.max(ay, by),
+  };
 }
 
 async function runValidation() {
@@ -725,10 +760,6 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-function pdfToCanvas(pageX, pageY, pageH, sx, sy) {
-  return [pageX * sx, (pageH - pageY) * sy];
-}
-
 function formatSigningDate(raw) {
   if (!raw || raw === "Unknown") return null;
   const s = String(raw).replace("T", " ").trim();
@@ -738,18 +769,29 @@ function formatSigningDate(raw) {
   return bare ? `Date: ${bare}` : null;
 }
 
+/** Split text into at most `maxLines` lines of about `width` characters (last line may run long). */
+function wrapLine(text, width, maxLines) {
+  const words = String(text || "Unknown").split(/\s+/).filter(Boolean);
+  const lines = [""];
+  for (const word of words) {
+    const last = lines.length - 1;
+    if (lines[last] && (lines[last] + " " + word).length > width && lines.length < maxLines) {
+      lines.push(word);
+    } else {
+      lines[last] = lines[last] ? `${lines[last]} ${word}` : word;
+    }
+  }
+  return lines;
+}
+
 function bodyLines(widget) {
   const ap = widget.appearance || {};
+  // e-Aadhaar always carries its own body lines (ap.n2Lines). Anything else
+  // gets the actual signer's name: never claim UIDAI for a different signer.
   const fromPdf =
     ap.n2Lines && ap.n2Lines.length
       ? [...ap.n2Lines]
-      : [
-          "Digitally signed by DS Unique",
-          "Identification Authority of India",
-          "06",
-          "Date:",
-          "IST",
-        ];
+      : ["Digitally signed by", ...wrapLine(cnFromSigner(widget.signer), 34, 2), "Date:"];
   const dateLine = formatSigningDate(widget.signingTime);
   if (dateLine) {
     const dateIdx = fromPdf.findIndex((l) => /^Date:/i.test(l));
@@ -776,22 +818,52 @@ function stampOpts(widget) {
   };
 }
 
+/**
+ * Rotated pages: draw in the page's own (PDF) space through pdf.js's viewport
+ * transform, so the stamp turns with the page like the PDF's native appearance.
+ * Frame: origin at the widget's top-left, y down, 1 unit = 1 pt.
+ */
+function drawRotatedValidityMark(ctx, widget, viewport) {
+  const [x1, y1, x2, y2] = widget.rect;
+  const ap = widget.appearance || {};
+  const formW = ap.formWidth || x2 - x1;
+  const formH = ap.formHeight || y2 - y1;
+  ctx.save();
+  ctx.transform(...viewport.transform);
+  ctx.translate(x1, y2);
+  ctx.scale(1, -1);
+  // Cover the whole widget: non-Acrobat appearances fall back to a 50x30
+  // form size (see verify._appearance), smaller than the box.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, Math.max(formW, x2 - x1), Math.max(formH, y2 - y1));
+  drawStamp(ctx, (formW / FORM_W) * (STAMP_CONFIG.globalScale ?? 1), true, {
+    ...stampOpts(widget),
+    originX: STAMP_CONFIG.stampOffsetX ?? 0,
+    originY: STAMP_CONFIG.stampOffsetY ?? 0,
+    skipBackground: true,
+  });
+  ctx.restore();
+}
+
 function drawValidityMark(ctx, widget, viewport, valid) {
   if (!valid) return;
 
-  const [x1, , x2] = widget.rect;
-  const [, , , pageH] = widget.mediaBox;
-  const sx = viewport.width / viewport.viewBox[2];
-  const sy = viewport.height / viewport.viewBox[3];
+  const [x1, y1, x2, y2] = widget.rect;
+  const scale = viewport.scale;
   const ap = widget.appearance || {};
-  const formW = ap.formWidth || x2 - x1;
 
-  const [boxL, boxT] = pdfToCanvas(x1, widget.rect[3], pageH, sx, sy);
-  const boxW = formW * sx;
-  const boxH = (ap.formHeight || widget.rect[3] - widget.rect[1]) * sy;
+  if (viewport.rotation % 360 !== 0) {
+    drawRotatedValidityMark(ctx, widget, viewport);
+    return;
+  }
+
+  // Unrotated pages (every e-Aadhaar): the tuned path, kept pixel-identical.
+  const { left: boxL, top: boxT } = widgetCanvasRect(widget, viewport);
+  const boxW = (ap.formWidth || x2 - x1) * scale;
+  const boxH = (ap.formHeight || y2 - y1) * scale;
   const stampScale = (boxW / FORM_W) * (STAMP_CONFIG.globalScale ?? 1);
-  const ox = (STAMP_CONFIG.stampOffsetX ?? 0) * sx;
-  const oy = (STAMP_CONFIG.stampOffsetY ?? 0) * sy;
+  const ox = (STAMP_CONFIG.stampOffsetX ?? 0) * scale;
+  const oy = (STAMP_CONFIG.stampOffsetY ?? 0) * scale;
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(boxL, boxT, boxW, boxH);

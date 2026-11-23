@@ -237,6 +237,32 @@ class HttpServerTests(unittest.TestCase):
         self.assertEqual(body["error"], 'Session expired. Click "Open another" and open the PDF again.')
         self.assertNotIn("\u2014", body["error"])
 
+    def _status_with_host(self, method: str, path: str, host: str | None) -> int:
+        conn = self._conn()
+        try:
+            conn.putrequest(method, path, skip_host=host is None or host != "default")
+            if host not in (None, "default"):
+                conn.putheader("Host", host)
+            conn.putheader("Content-Length", "0")
+            conn.endheaders()
+            resp = conn.getresponse()
+            resp.read()
+            return resp.status
+        finally:
+            conn.close()
+
+    def test_foreign_host_is_rejected(self) -> None:
+        # DNS rebinding: a page on evil.example resolving to 127.0.0.1 sends its own Host.
+        for method, path in (("GET", "/"), ("GET", "/static/viewer.js"), ("POST", "/api/validate")):
+            for host in ("evil.example", f"evil.example:{self.port}", "127.0.0.1:1", "", None):
+                with self.subTest(method=method, path=path, host=host):
+                    self.assertEqual(self._status_with_host(method, path, host), 403)
+
+    def test_local_hosts_are_allowed(self) -> None:
+        for host in (f"127.0.0.1:{self.port}", f"localhost:{self.port}", f"LOCALHOST:{self.port}", "default"):
+            with self.subTest(host=host):
+                self.assertEqual(self._status_with_host("GET", "/", host), 200)
+
     def test_static_path_traversal(self) -> None:
         conn = self._conn()
         try:

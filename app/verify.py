@@ -60,16 +60,52 @@ def _page_index(reader, field) -> int:
     return 0
 
 
-def _rect(field) -> list[float]:
-    rect = _deref(field["/Rect"])
-    return [float(x) for x in rect]
+def _widget_annot(field):
+    """The widget annotation of a signature field.
+
+    Usually the field and its widget are one merged dictionary (e-Aadhaar is);
+    otherwise the widget is a /Kids entry carrying /Rect, /P and /AP.
+    """
+    field = _deref(field)
+    if "/Rect" in field:
+        return field
+    kids = field.get("/Kids")
+    for kid in _deref(kids) if kids is not None else []:
+        kid = _deref(kid)
+        if "/Rect" in kid:
+            return kid
+    return field
+
+
+def _rect(widget) -> list[float]:
+    rect = widget.get("/Rect")
+    if rect is None:  # no widget at all: treat as an invisible signature
+        return [0.0, 0.0, 0.0, 0.0]
+    return [float(x) for x in _deref(rect)]
+
+
+def _inherited(node, key: str):
+    """Look up an inheritable page attribute (e.g. /MediaBox) via /Parent."""
+    node = _deref(node)
+    for _ in range(64):  # guard against /Parent cycles in malformed files
+        if node is None:
+            return None
+        if key in node:
+            return _deref(node[key])
+        parent = node.get("/Parent")
+        node = _deref(parent) if parent is not None else None
+    return None
+
+
+# US Letter, the usual default when a malformed file has no MediaBox at all.
+_DEFAULT_MEDIA_BOX = [0.0, 0.0, 612.0, 792.0]
 
 
 def _media_box(reader, page_index: int) -> list[float]:
     pages = []
     _walk_pages(reader.root["/Pages"], pages)
-    box = _deref(pages[page_index]["/MediaBox"])
-    return [float(x) for x in box]
+    box = _inherited(pages[page_index], "/MediaBox")
+    return [float(x) for x in box] if box is not None else list(_DEFAULT_MEDIA_BOX)
 
 
 def _appearance(field) -> dict:
@@ -152,13 +188,14 @@ def decrypt_bytes(pdf_bytes: bytes, password: str | None) -> bytes:
 
 
 def _widget_base(reader, field) -> dict:
-    page_index = _page_index(reader, field)
+    widget = _widget_annot(field)
+    page_index = _page_index(reader, widget)
     return {
         "field": str(_deref(field.get("/T", "Signature"))),
         "pageIndex": page_index,
-        "rect": _rect(field),
+        "rect": _rect(widget),
         "mediaBox": _media_box(reader, page_index),
-        "appearance": _appearance(field),
+        "appearance": _appearance(widget),
     }
 
 
@@ -348,58 +385,6 @@ def validate_uploaded_bytes(pdf_bytes: bytes, password: str | None) -> dict:
         "valid": all_valid,
         "details": "\n\n".join(details),
         "reports": reports,
-        "widgets": widgets,
-    }
-
-
-def validate_decrypted_bytes(view_bytes: bytes) -> dict:
-    """Validate signatures on already-decrypted PDF bytes.
-
-    Note: bytes produced by decrypt_bytes() (pikepdf re-save) break signature
-    coverage — use validate_uploaded_bytes() for real validation.
-    """
-    roots = load_trust_roots()
-    vc = ValidationContext(trust_roots=roots)
-    reader = PdfFileReader(io.BytesIO(view_bytes), strict=False)
-
-    signatures = list(reader.embedded_signatures)
-    if not signatures:
-        raise ValueError("No digital signature found in this PDF")
-
-    widgets = []
-    all_valid = True
-    details = []
-
-    for sig in signatures:
-        status = validate_pdf_signature(sig, signer_validation_context=vc)
-        valid = bool(status.bottom_line)
-        all_valid = all_valid and valid
-        details.append(status.pretty_print_details())
-
-        cert = status.signing_cert
-        signer = cert.subject.human_friendly if cert else "Unknown"
-        sha256 = cert.sha256.hex() if cert else ""
-        trust_anchor = "CCA India 2022"
-        if status.validation_path and status.validation_path.trust_anchor:
-            anchor = status.validation_path.trust_anchor.certificate
-            if anchor:
-                trust_anchor = anchor.subject.human_friendly
-
-        widget = _widget_base(reader, sig.sig_field)
-        widget.update(
-            {
-                "valid": valid,
-                "signer": signer,
-                "signingTime": str(status.signer_reported_dt or "Unknown"),
-                "trustAnchor": trust_anchor,
-                "sha256": sha256,
-            }
-        )
-        widgets.append(widget)
-
-    return {
-        "valid": all_valid,
-        "details": "\n\n".join(details),
         "widgets": widgets,
     }
 

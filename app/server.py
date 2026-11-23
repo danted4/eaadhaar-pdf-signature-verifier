@@ -97,6 +97,25 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
 
+    def _host_allowed(self) -> bool:
+        """Only answer requests addressed to this local server.
+
+        A page on another site can point its own hostname at 127.0.0.1 (DNS
+        rebinding); its requests then carry that hostname in Host, not ours.
+        """
+        port = self.server.server_address[1]
+        host = (self.headers.get("Host") or "").strip().lower()
+        allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        if port == 80:
+            allowed |= {"127.0.0.1", "localhost"}
+        return host in allowed
+
+    def _reject_foreign_host(self) -> bool:
+        if self._host_allowed():
+            return False
+        self._send(403, b"Forbidden host", "text/plain")
+        return True
+
     def log_message(self, fmt, *args):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
@@ -115,6 +134,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(payload).encode(), "application/json")
 
     def do_GET(self):
+        if self._reject_foreign_host():
+            return
         _purge()
         parsed = urlparse(self.path)
         path = parsed.path
@@ -160,6 +181,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
+        if self._reject_foreign_host():
+            return
         _purge()
         parsed = urlparse(self.path)
         path = parsed.path

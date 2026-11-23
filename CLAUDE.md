@@ -32,7 +32,7 @@ There is no linter or formatter configured.
 2. `GET /api/pdf/<sid>` serves the decrypted `viewBytes` to pdf.js.
 3. User clicks the `?` widget → `POST /api/validate {sessionId}` → `verify.validate_uploaded_bytes` runs pyHanko on the **original encrypted bytes** (decrypting in pyHanko's reader only).
 
-Validation must never run on pikepdf-resaved bytes: re-saving breaks signature byte-range coverage. `validate_decrypted_bytes` exists but is a trap for this reason. `/api/verify` is a legacy one-shot (preview + validate together).
+Validation must never run on pikepdf-resaved bytes: re-saving breaks signature byte-range coverage (an unused `validate_decrypted_bytes` that did this was removed in 2.3.5; don't bring it back). `/api/verify` is a legacy one-shot (preview + validate together).
 
 **Widget geometry for the stamp.** `verify._appearance` regex-parses the Acrobat n0–n4 signature appearance layers (`/AP /N /FRM /n1 /n2 /n4`) to extract transform matrices, bbox, font sizes and n2 text lines, with hardcoded fallbacks when parsing fails. The frontend uses this plus `rect`/`mediaBox`/`pageIndex` to position its own rendering over the native `?` stamp.
 
@@ -61,6 +61,8 @@ The suite is hermetic: no network, no real `.venv`, no real Aadhaar.
 - `getDocument` must keep `isEvalSupported: false`. The CSP added in `Handler.end_headers`, which covers every response including `send_error` pages, must keep `script-src`/`style-src` at `'self'`, with no `unsafe-eval`/`unsafe-inline` (`test_pdfjs.py`, `test_http.py`). Together these close CVE-2024-4367, a forged PDF faking the green tick.
 - No inline styles in `app/static/*.js` or `index.html`: no `<style>` blocks, no `style=` attributes, no `setAttribute("style")`. The CSP silently drops them. Use CSSOM (`el.style.x`) or a static stylesheet; the print iframe loads `app/static/print-frame.css` and refuses to print if that file fails to load.
 - Upload `Content-Length` must be `0..20 MiB`; `/api/validate` JSON bodies are capped at 64 KiB.
+- Every GET/POST must pass `Handler._host_allowed` (Host is `127.0.0.1:<port>` or `localhost:<port>`); `test_http.py` covers foreign hosts.
+- Stamp geometry: unrotated pages (every e-Aadhaar) must stay on the original `drawValidityMark` path, which is pixel-identical to the tuned stamp; only rotated pages use `drawRotatedValidityMark`. The `bodyLines` fallback must name the real signer, never UIDAI (`test_pdfjs.py`).
 
 ## Privacy
 
