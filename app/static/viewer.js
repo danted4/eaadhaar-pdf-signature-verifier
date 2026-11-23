@@ -65,6 +65,8 @@ const RENDER_SCALE = () =>
 const PRINT_RENDER_SCALE = 600 / 72;
 
 let printBuildToken = 0;
+/** True from a Print click until print() returns or fails; blocks re-entry. */
+let printing = false;
 const printStoreEl = () => document.getElementById("print-store");
 
 const form = document.getElementById("form");
@@ -75,6 +77,7 @@ const pagesEl = document.getElementById("pages");
 const docbar = document.getElementById("docbar");
 const docbarTitle = document.getElementById("docbar-title");
 const docbarSub = document.getElementById("docbar-sub");
+const docbarAlert = document.getElementById("docbar-alert");
 const printBtn = document.getElementById("print");
 const pdfInput = document.getElementById("pdf");
 const filePick = document.getElementById("filePick");
@@ -134,9 +137,7 @@ form.addEventListener("submit", async (event) => {
   data.append("password", password);
 
   try {
-    const res = await fetch("/api/preview", { method: "POST", body: data });
-    const payload = await res.json();
-    if (!res.ok) throw new Error(payload.error || "Could not open PDF");
+    const payload = await fetchJson("/api/preview", { method: "POST", body: data }, "Could not open PDF");
     await openPreview(payload);
   } catch (err) {
     showError(err);
@@ -153,8 +154,36 @@ document.getElementById("again").addEventListener("click", () => {
 });
 
 printBtn.addEventListener("click", () => {
-  if (app.validated) printDocument();
+  if (!app.validated || printing) return;
+  clearAlert();
+  printDocument();
 });
+
+/** Thrown when fetch itself fails (server stopped, port closed). */
+class ServerUnreachableError extends Error {}
+
+/**
+ * fetch + JSON with readable errors. Any TypeError from fetch is a network
+ * failure (Chrome: "Failed to fetch", Safari: "Load failed", Firefox:
+ * "NetworkError ..."), so don't match on the browser's wording.
+ */
+async function fetchJson(url, options, fallbackError) {
+  let res;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    if (err instanceof TypeError) throw new ServerUnreachableError(err.message);
+    throw err;
+  }
+  let payload;
+  try {
+    payload = await res.json();
+  } catch {
+    throw new Error(`Unexpected response from the server (HTTP ${res.status})`);
+  }
+  if (!res.ok) throw new Error(payload?.error || fallbackError);
+  return payload;
+}
 
 function printSourceCanvases() {
   const store = printStoreEl();
@@ -167,6 +196,7 @@ function printSourceCanvases() {
 function printDocument() {
   const canvases = printSourceCanvases();
   if (!canvases.length) return;
+  printing = true;
 
   // CSP has no 'unsafe-inline' for styles: use CSSOM for the iframe and a
   // same-origin stylesheet (not an inline <style>) inside it.
@@ -202,6 +232,7 @@ function printDocument() {
   document.title = " ";
 
   const cleanup = () => {
+    printing = false;
     document.title = prevTitle;
     iframe.remove();
     win.removeEventListener("afterprint", cleanup);
@@ -213,6 +244,9 @@ function printDocument() {
       () => {
         win.focus();
         win.print();
+        // print() returns once the dialog is up or closed; afterprint may
+        // never fire in some browsers, so don't leave Print locked.
+        printing = false;
       },
       (err) => {
         cleanup();
@@ -241,13 +275,32 @@ function printDocument() {
   }
 }
 
+/**
+ * Show an app error where the user can see it: the red line on the upload
+ * screen, or the amber alert inside the document bar once a PDF is open.
+ * The alert never changes the bar's verdict colour or title.
+ */
 function showError(err) {
-  const msg =
-    err instanceof TypeError && /fetch/i.test(String(err.message))
-      ? "Cannot reach the server. Run ./everify-app in the project folder, then refresh this page."
-      : err.message;
-  errorEl.textContent = msg;
-  errorEl.hidden = false;
+  const onDocument = !workspace.hidden;
+  let msg = err?.message || String(err);
+  if (err instanceof ServerUnreachableError) {
+    msg = onDocument
+      ? "Cannot reach the server. Start the app again, then open the PDF again."
+      : "Cannot reach the server. Run ./everify-app in the project folder, then refresh this page.";
+  }
+  if (onDocument) {
+    docbarAlert.textContent = msg;
+    docbarAlert.hidden = false;
+  } else {
+    errorEl.textContent = msg;
+    errorEl.hidden = false;
+  }
+}
+
+function clearAlert() {
+  docbarAlert.textContent = "";
+  docbarAlert.hidden = true;
+  errorEl.hidden = true;
 }
 
 function resetApp() {
@@ -259,7 +312,9 @@ function resetApp() {
   app.pdfDoc = null;
   app.sheets = [];
   app.pendingValidation = null;
+  printing = false;
   clearPrintStore();
+  clearAlert();
   hideValidationModal();
 }
 
@@ -322,7 +377,7 @@ function updateDocbar() {
   }
   if (!app.validated) {
     docbar.classList.add("preview");
-    docbarTitle.textContent = "Preview — click the ? mark to verify";
+    docbarTitle.textContent = "Preview: click the ? mark to verify";
     docbarSub.textContent = "The stamp shown is from your PDF until you verify";
     return;
   }
@@ -331,10 +386,19 @@ function updateDocbar() {
   docbarTitle.textContent = app.valid
     ? "Signed and all signatures are valid."
     : "At least one signature has problems.";
+  const reason = app.valid ? null : failureReasonOf(app.widgets);
   const first = app.widgets[0];
-  docbarSub.textContent = first
-    ? first.signer.split(",")[0].replace("Common Name: ", "")
-    : "";
+  docbarSub.textContent = reason
+    ? `Reason: ${reason}.`
+    : first
+      ? first.signer.split(",")[0].replace("Common Name: ", "")
+      : "";
+}
+
+/** First failing signature's short reason from the server, if any. */
+function failureReasonOf(items) {
+  const failed = (items || []).map((w) => w.report || w).find((r) => r && !r.valid);
+  return failed?.failureReason || null;
 }
 
 async function openPreview(payload) {
@@ -347,10 +411,18 @@ async function openPreview(payload) {
   pagesEl.innerHTML = "";
   updateDocbar();
 
+  try {
+    await renderPreviewPages(payload.sessionId);
+  } catch (err) {
+    throw new Error(`Could not display this PDF: ${err?.message || err}`);
+  }
+}
+
+async function renderPreviewPages(sessionId) {
   // isEvalSupported: false closes CVE-2024-4367 (font FontMatrix compiled via
   // new Function). The server's CSP also forbids eval; keep both layers.
   app.pdfDoc = await pdfjsLib.getDocument({
-    url: `/api/pdf/${payload.sessionId}`,
+    url: `/api/pdf/${sessionId}`,
     isEvalSupported: false,
   }).promise;
   const renderScale = RENDER_SCALE();
@@ -443,17 +515,19 @@ function widgetCanvasRect(widget, viewport) {
 async function runValidation() {
   if (app.validating || app.validated || !app.sessionId) return;
   app.validating = true;
+  clearAlert();
   updateDocbar();
-  errorEl.hidden = true;
 
   try {
-    const res = await fetch("/api/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: app.sessionId }),
-    });
-    const payload = await res.json();
-    if (!res.ok) throw new Error(payload.error || "Validation failed");
+    const payload = await fetchJson(
+      "/api/validate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: app.sessionId }),
+      },
+      "Validation failed",
+    );
     app.validating = false;
     app.pendingValidation = payload;
     updateDocbar();
@@ -472,7 +546,7 @@ function cnFromSigner(signer) {
 }
 
 function formatTrustAnchor(anchor) {
-  if (!anchor) return "Unknown";
+  if (!anchor) return "Not established";
   return cnFromSigner(anchor);
 }
 
@@ -503,9 +577,9 @@ function buildValidationModalBody(payload) {
             <div><dt>Certificate trusted</dt><dd>${yesNo(r.certificateTrusted)}</dd></div>
             <div><dt>Integrity intact</dt><dd>${yesNo(r.integrityIntact)}</dd></div>
             <div><dt>Covers entire file</dt><dd>${yesNo(r.coversEntireFile)}</dd></div>
-            <div><dt>Digest</dt><dd>${escapeHtml(r.digestAlgorithm || "—")}</dd></div>
-            <div><dt>Signature type</dt><dd>${escapeHtml(r.signatureMechanism || "—")}</dd></div>
-            <div><dt>SHA-256</dt><dd><code>${escapeHtml(r.sha256 || "—")}</code></dd></div>
+            <div><dt>Digest</dt><dd>${escapeHtml(r.digestAlgorithm || "Unknown")}</dd></div>
+            <div><dt>Signature type</dt><dd>${escapeHtml(r.signatureMechanism || "Unknown")}</dd></div>
+            <div><dt>SHA-256</dt><dd><code>${escapeHtml(r.sha256 || "Unknown")}</code></dd></div>
           </dl>
         </section>`;
     })
@@ -516,8 +590,8 @@ function buildValidationModalBody(payload) {
     <section class="modal-section">
       <h3>How validation works</h3>
       <p class="modal-explainer">
-        Validation runs locally on your machine using <strong>pyHanko</strong> — the same
-        class of checks Adobe Acrobat performs — without sending your PDF to any server.
+        Validation runs locally on your machine using <strong>pyHanko</strong>, the same
+        class of checks Adobe Acrobat performs, without sending your PDF to any server.
         <ol>
           <li>Read the embedded PKCS#7 signature from the original file bytes (decrypt in memory only).</li>
           <li>Verify the document digest (${escapeHtml(reports[0]?.digestAlgorithm || "SHA-256")}) and RSA signature.</li>
@@ -531,7 +605,7 @@ function buildValidationModalBody(payload) {
       <h3>Checked at</h3>
       <dl class="modal-dl">
         <div><dt>Validation time</dt><dd>${escapeHtml(formatDisplayTime(reports[0]?.validatedAt))}</dd></div>
-        <div><dt>Original PDF</dt><dd>Unchanged — only the on-screen stamp is drawn for preview/print.</dd></div>
+        <div><dt>Original PDF</dt><dd>Unchanged. Only the on-screen stamp is drawn for preview and print.</dd></div>
       </dl>
     </section>`;
 }
@@ -551,9 +625,12 @@ function showValidationModal(payload) {
   validationModalTitle.textContent = valid
     ? "Signature verified"
     : "Signature not verified";
+  const reason = valid ? null : failureReasonOf(payload.reports?.length ? payload.reports : payload.widgets);
   validationModalLead.textContent = valid
     ? "This e-Aadhaar signature is cryptographically valid and chains to India's CCA root."
-    : "The signature could not be trusted or the document integrity check failed.";
+    : reason
+      ? `Reason: ${reason}.`
+      : "The signature could not be trusted or the document integrity check failed.";
   validationModalBody.innerHTML = buildValidationModalBody(payload);
   validationModalAction.textContent = valid ? "OK" : "Close";
   validationModal.hidden = false;
@@ -575,6 +652,7 @@ async function completeValidation() {
   app.widgets = payload.widgets;
   app.pendingValidation = null;
   hideValidationModal();
+  clearAlert();
   updateDocbar();
   try {
     if (app.valid) {

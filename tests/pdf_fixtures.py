@@ -22,7 +22,17 @@ def _name(cn: str) -> x509.Name:
     return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
 
 
-def make_ca_and_leaf(tmp: Path) -> tuple[Path, Path, Path]:
+def make_ca_and_leaf(
+    tmp: Path,
+    *,
+    leaf_not_before: datetime | None = None,
+    leaf_not_after: datetime | None = None,
+) -> tuple[Path, Path, Path]:
+    """Write a test root CA and a signing leaf into `tmp`.
+
+    Pass `leaf_not_before`/`leaf_not_after` to make an already-expired (or
+    not-yet-valid) signer certificate; the CA stays valid either way.
+    """
     now = datetime.now(timezone.utc)
     ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     leaf_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -57,8 +67,8 @@ def make_ca_and_leaf(tmp: Path) -> tuple[Path, Path, Path]:
         .issuer_name(ca_cert.subject)
         .public_key(leaf_key.public_key())
         .serial_number(2)
-        .not_valid_before(now - timedelta(days=1))
-        .not_valid_after(now + timedelta(days=30))
+        .not_valid_before(leaf_not_before or now - timedelta(days=1))
+        .not_valid_after(leaf_not_after or now + timedelta(days=30))
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(
             x509.KeyUsage(

@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Errors after a PDF is open are now visible. Session expiry, a stopped server, validation errors, a PDF that pdf.js cannot display, and print failures show as an amber line in the top bar instead of silently resetting it. The bar keeps its verdict colour, so an app error is never mistaken for an invalid signature
+- An INVALID result no longer names "CCA India 2022" as the trust anchor when no chain to it was established; it shows "Not established"
+- `/api/validate` returns 400 for a body that is not a JSON object, has a non-string `sessionId`, or is not UTF-8, instead of dropping the connection
+- Clicking Print repeatedly no longer leaves the page title blank or stacks print frames
+- "Cannot reach the server" is now detected in every browser (Safari reported its raw "Load failed")
+- The "?" in the preview bar icon is centred
+
+### Changed
+
+- An INVALID result shows one short reason in the popup and the bar, e.g. "Reason: signer certificate expired (2029-02-03)" or "Reason: document changed after signing". The API report gains a `failureReason` field
+- The session-expired message says what to do: click "Open another" and open the PDF again
+- No em dashes in UI text
+
 ## [2.3.3] - 2026-11-22
 
 ### Security

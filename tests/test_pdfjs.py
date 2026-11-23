@@ -82,6 +82,22 @@ class PdfJsVendorTests(unittest.TestCase):
         self.assertIn("/static/print-frame.css", (STATIC / "viewer.js").read_text(encoding="utf-8"))
         self.assertTrue((STATIC / "print-frame.css").is_file())
 
+    def test_ui_strings_have_no_em_dashes(self) -> None:
+        # User-facing text only. stamp-render.js's tick-point labels are for
+        # the stamp lab and mirror prototype/stamp-render.js, so they're exempt.
+        for path in (STATIC / "viewer.js", STATIC / "index.html"):
+            text = path.read_text(encoding="utf-8")
+            if path.suffix == ".js":
+                text = _strip_js_comments(text)
+            with self.subTest(path.name):
+                self.assertNotIn("\u2014", text)
+
+    def test_docbar_alert_is_announced(self) -> None:
+        # Post-preview errors render here (showError in viewer.js); role=alert
+        # makes screen readers announce them.
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<div id="docbar-alert"[^>]*\brole="alert"[^>]*\bhidden\b')
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -213,6 +213,30 @@ class HttpServerTests(unittest.TestCase):
         self.assertEqual(resp.status, 404)
         self.assertIn(b"expired", raw)
 
+    def _post_validate(self, raw: bytes) -> tuple[int, dict]:
+        conn = self._conn()
+        try:
+            conn.request("POST", "/api/validate", body=raw, headers={"Content-Type": "application/json"})
+            resp = conn.getresponse()
+            return resp.status, json.loads(resp.read())
+        finally:
+            conn.close()
+
+    def test_validate_rejects_malformed_bodies_with_400(self) -> None:
+        # Each of these used to raise inside the handler and drop the connection,
+        # which the viewer would misreport as "Cannot reach the server".
+        for raw in (b"[]", b'"x"', b"5", b'{"sessionId": 5}', b'{"sessionId": null}', b"\xff\xfe"):
+            with self.subTest(raw=raw):
+                status, body = self._post_validate(raw)
+                self.assertEqual(status, 400)
+                self.assertIn("error", body)
+
+    def test_session_expired_message_is_actionable(self) -> None:
+        status, body = self._post_validate(json.dumps({"sessionId": "gone"}).encode())
+        self.assertEqual(status, 404)
+        self.assertEqual(body["error"], 'Session expired. Click "Open another" and open the PDF again.')
+        self.assertNotIn("\u2014", body["error"])
+
     def test_static_path_traversal(self) -> None:
         conn = self._conn()
         try:
