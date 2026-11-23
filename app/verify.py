@@ -189,11 +189,95 @@ def _cn_from_subject(subject: str) -> str:
     return subject.split(",")[0].strip() if subject else "Unknown"
 
 
+NO_CHAIN_REASON = "certificate does not chain to a bundled CCA India root"
+CHAIN_INVALID_REASON = "certificate chain could not be validated"
+# Reasons that mean no trustworthy chain to a bundled root exists, so the
+# report must not name a trust anchor.
+_NO_ANCHOR_REASONS = {NO_CHAIN_REASON, CHAIN_INVALID_REASON}
+
+
+def _local_date(dt) -> str:
+    # The server runs on the user's own machine, so its local date matches the
+    # local times the viewer shows (an e-Aadhaar expiring late UTC is next day IST).
+    return dt.astimezone().date().isoformat()
+
+
+def _validity_reason(status) -> str | None:
+    """Date problem in the signer certificate or anywhere in its chain.
+
+    pyHanko only reports an expired *signer* specifically (OUT_OF_BOUNDS_NO_POE);
+    an expired sub-CA or a not-yet-valid certificate all come back as
+    CERTIFICATE_CHAIN_GENERAL_FAILURE, so check the dates directly.
+    """
+    moment = status.validation_time
+    if moment is None:
+        return None
+    cert = status.signing_cert
+    if cert is not None:
+        if cert.not_valid_after <= moment:
+            return f"signer certificate expired ({_local_date(cert.not_valid_after)})"
+        if cert.not_valid_before > moment:
+            return "signer certificate not yet valid"
+    path = status.validation_path
+    if path is not None:
+        for chain_cert in path.iter_certs(include_root=True):
+            if chain_cert.not_valid_after <= moment:
+                return f"a certificate in the chain expired ({_local_date(chain_cert.not_valid_after)})"
+            if chain_cert.not_valid_before > moment:
+                return "a certificate in the chain is not yet valid"
+    return None
+
+
+def _failure_reason(status) -> str | None:
+    """One short, factual reason for an INVALID result (None when valid).
+
+    Integrity problems win over trust problems: a modified file is reported as
+    modified even if its certificate is also untrusted.
+    """
+    if status.bottom_line:
+        return None
+    if not status.intact:
+        return "document changed after signing"
+    if not status.valid:
+        return "signature does not match the document"
+    if getattr(status, "docmdp_ok", None) is False:
+        return "file modified after signing"
+
+    indic = status.trust_problem_indic
+    name = getattr(indic, "name", "") if indic is not None else ""
+    if name.startswith("REVOKED"):
+        # REVOKED / REVOKED_NO_POE: the signer; REVOKED_CA_NO_POE: a CA above it.
+        return "a certificate in the chain was revoked" if "_CA_" in name else "signer certificate revoked"
+    if indic is not None or status.validation_path is None:
+        if status.validation_path is None or name == "NO_CERTIFICATE_CHAIN_FOUND":
+            return NO_CHAIN_REASON
+        date_reason = _validity_reason(status)
+        if date_reason:
+            return date_reason
+        if name == "CERTIFICATE_CHAIN_GENERAL_FAILURE":
+            return CHAIN_INVALID_REASON
+        return f"validation failed ({name.lower()})"
+
+    ts = getattr(status, "timestamp_validity", None)
+    if ts is not None and not (ts.valid and ts.intact and ts.trusted):
+        return "signature timestamp is not valid"
+    if getattr(status, "seed_value_ok", True) is False:
+        return "signature field constraints not met"
+    return "validation failed"
+
+
 def _signature_report(status) -> dict:
     cert = status.signing_cert
     signer = cert.subject.human_friendly if cert else "Unknown"
-    trust_anchor = "CCA India 2022"
-    if status.validation_path and status.validation_path.trust_anchor:
+    # Name a trust anchor only when a chain to it was actually established: no
+    # path, or a path that failed the chain check, means "Not established".
+    failure_reason = _failure_reason(status)
+    trust_anchor = None
+    if (
+        failure_reason not in _NO_ANCHOR_REASONS
+        and status.validation_path
+        and status.validation_path.trust_anchor
+    ):
         anchor = status.validation_path.trust_anchor.certificate
         if anchor:
             trust_anchor = anchor.subject.human_friendly
@@ -214,6 +298,7 @@ def _signature_report(status) -> dict:
         "sha256": cert.sha256.hex() if cert else "",
         "sha1": cert.sha1.hex() if cert else "",
         "bottomLine": "VALID" if status.bottom_line else "INVALID",
+        "failureReason": failure_reason,
     }
 
 
@@ -225,6 +310,7 @@ def _apply_signature_status(widget: dict, status) -> dict:
             "signer": report["signer"],
             "signingTime": report["signingTime"],
             "trustAnchor": report["trustAnchor"],
+            "failureReason": report["failureReason"],
             "sha256": report["sha256"],
             "report": report,
         }

@@ -82,6 +82,39 @@ class PdfJsVendorTests(unittest.TestCase):
         self.assertIn("/static/print-frame.css", (STATIC / "viewer.js").read_text(encoding="utf-8"))
         self.assertTrue((STATIC / "print-frame.css").is_file())
 
+    def test_ui_strings_have_no_em_dashes(self) -> None:
+        # User-facing text only. stamp-render.js's tick-point labels are for
+        # the stamp lab and mirror prototype/stamp-render.js, so they're exempt.
+        for path in (STATIC / "viewer.js", STATIC / "index.html"):
+            text = path.read_text(encoding="utf-8")
+            if path.suffix == ".js":
+                text = _strip_js_comments(text)
+            with self.subTest(path.name):
+                self.assertNotIn("\u2014", text)
+
+    def test_docbar_alert_is_announced(self) -> None:
+        # Post-preview errors render here (showError in viewer.js); role=alert
+        # makes screen readers announce them.
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<div id="docbar-alert"[^>]*\brole="alert"[^>]*\bhidden\b')
+        # .docbar-sub styles the verdict/reason line above the alert.
+        self.assertIn('id="docbar-sub" class="docbar-sub"', html)
+
+    def test_client_upload_cap_matches_server(self) -> None:
+        import sys
+
+        sys.path.insert(0, str(REPO_ROOT / "app"))
+        import server  # noqa: E402
+
+        js = (STATIC / "viewer.js").read_text(encoding="utf-8")
+        match = re.search(r"const MAX_UPLOAD_BYTES = ([\d\s*]+);", js)
+        self.assertIsNotNone(match, "MAX_UPLOAD_BYTES not found in viewer.js")
+        factors = [int(f) for f in match.group(1).split("*")]
+        product = 1
+        for f in factors:
+            product *= f
+        self.assertEqual(product, server.MAX_UPLOAD_BYTES)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -40,6 +40,8 @@ Validation must never run on pikepdf-resaved bytes: re-saving breaks signature b
 
 **Stamp config is duplicated on purpose.** The locked layout is `STAMP_CONFIG` in `viewer.js`; `app/stamp-config.default.json` is the reference export. `tests/test_stamp_config.py` extracts `STAMP_CONFIG` with a brace-matching regex and asserts key overlap matches the JSON, so keep that object a plain JSON-like literal and update both together. `prototype/` (the stamp tuning lab, served at `/prototype/` if present) is gitignored and local-only. The CSP applies there too, so any inline `<script>`/`<style>`/`style=` in the lab must live in files under `prototype/`.
 
+**Errors and verdicts.** After a PDF is open, `showError` in `viewer.js` routes every app error to the amber `#docbar-alert` inside the bar, and the bar's colour/title stay reserved for the signature verdict. Before that, errors go to `#error` on the upload screen. INVALID reasons are computed server-side by `verify._failure_reason` (exposed as `failureReason`), and `trustAnchor` is `None` unless a chain was established.
+
 **CLI** (`verify_aadhaar.py`) puts `app/` on `sys.path` and calls the same `validate_uploaded_bytes`; there is deliberately only one validation path.
 
 ## Tests

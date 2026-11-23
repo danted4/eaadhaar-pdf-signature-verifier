@@ -89,8 +89,6 @@ button.ghost { background: #eee; color: #222; }
   transform: none;
   width: auto;
   height: auto;
-  left: auto;
-  top: auto;
 }
 .page-canvas.sig-hit { cursor: pointer; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -125,7 +123,27 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .docbar.invalid .docbar-icon::before { transform: rotate(45deg); }
 .docbar.invalid .docbar-icon::after { transform: rotate(-45deg); }
+.docbar-text { flex: 1 1 auto; min-width: 0; }
 .docbar-sub { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+/* App errors (server down, session expired, print failed). Amber, never red,
+   so it can't be mistaken for the signature verdict that colours the bar. */
+.docbar-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #fff4d6;
+  color: #6b4500;
+  border: 1px solid #f0c36d;
+  font-size: 12px;
+  line-height: 1.4;
+  width: fit-content;
+  max-width: 60ch;
+}
+.docbar-alert::before { content: "\26A0"; flex-shrink: 0; }
+.docbar-alert[hidden] { display: none; }
 .actions { margin-left: auto; display: flex; gap: 8px; }
 
 .pages {

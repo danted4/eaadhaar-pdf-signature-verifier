@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>e-Aadhaar PDF Signature Verifier</title>
-  <link rel="stylesheet" href="/static/styles.css?v=9">
+  <link rel="stylesheet" href="/static/styles.css?v=10">
   <script src="/static/pdfjs/pdf.min.js"></script>
 </head>
 <body>
@@ -15,7 +15,7 @@
 
   <section id="upload" class="panel">
     <h1>Open e-Aadhaar</h1>
-    <p class="lede">Opens your e-Aadhaar as-is (with the original ? stamp), then verifies when you click the signature — same booth flow as Acrobat. This is not Adobe software.</p>
+    <p class="lede">Opens your e-Aadhaar as-is (with the original ? stamp), then verifies when you click the signature: the same booth flow as Acrobat. This is not Adobe software.</p>
     <form id="form">
       <label class="file" id="filePick">
         <input type="file" id="pdf" accept="application/pdf" required>
@@ -31,9 +31,10 @@
   <div id="workspace" hidden>
     <div id="docbar" class="docbar preview">
       <span class="docbar-icon" aria-hidden="true"></span>
-      <div>
-        <strong id="docbar-title">Preview — click the ? mark to verify</strong>
-        <div id="docbar-sub"></div>
+      <div class="docbar-text">
+        <strong id="docbar-title">Preview: click the ? mark to verify</strong>
+        <div id="docbar-sub" class="docbar-sub"></div>
+        <div id="docbar-alert" class="docbar-alert" role="alert" hidden></div>
       </div>
       <div class="actions">
         <button type="button" id="print" disabled title="Verify the signature first">Print</button>
@@ -62,6 +63,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/viewer.js?v=29"></script>
+  <script type="module" src="/static/viewer.js?v=30"></script>
 </body>
 </html>

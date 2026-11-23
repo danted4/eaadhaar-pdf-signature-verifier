@@ -223,17 +223,20 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length) if length else b"{}"
         try:
             payload = json.loads(body.decode("utf-8") or "{}")
-        except json.JSONDecodeError:
+        except (ValueError, RecursionError):  # bad JSON, non-UTF-8, absurd nesting
             self._json(400, {"error": "Invalid JSON"})
             return
-        sid = payload.get("sessionId", "")
+        sid = payload.get("sessionId", "") if isinstance(payload, dict) else None
+        if not isinstance(sid, str):
+            self._json(400, {"error": "Invalid request"})
+            return
         with SESSIONS_LOCK:
             _purge_unlocked()
             session = SESSIONS.get(sid)
             original = session["original"] if session else None
             password = (session.get("password") or None) if session else None
         if not session:
-            self._json(404, {"error": "Session expired — open the PDF again"})
+            self._json(404, {"error": 'Session expired. Click "Open another" and open the PDF again.'})
             return
         try:
             result = validate_uploaded_bytes(original, password)
