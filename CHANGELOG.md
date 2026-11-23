@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.3.6] - 2026-11-23
 
 ### Changed
 
@@ -147,7 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `everify.py` monolithic entry point (use `./everify-app` instead)
 - Prototype stamp lab from the public repository (local dev only, gitignored)
 
-[Unreleased]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/compare/v2.3.5...HEAD
+[2.3.6]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.6
 [2.3.5]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.5
 [2.3.4]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.4
 [2.3.3]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.3
