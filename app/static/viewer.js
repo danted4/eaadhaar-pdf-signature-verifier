@@ -93,6 +93,10 @@ const pdfInput = document.getElementById("pdf");
 const filePick = document.getElementById("filePick");
 const fileLabel = document.getElementById("fileLabel");
 const fileChosen = document.getElementById("fileChosen");
+const passwordField = document.getElementById("passwordField");
+const passwordHint = document.getElementById("passwordHint");
+const passwordInput = document.getElementById("password");
+const previewBtn = document.getElementById("previewBtn");
 const validationModal = document.getElementById("validationModal");
 const validationModalHeader = document.getElementById("validationModalHeader");
 const validationModalTitle = document.getElementById("validationModalTitle");
@@ -118,28 +122,107 @@ function formatBytes(n) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** The file field never moves: only its text and colour change. */
 function updateFileChosen() {
   const file = pdfInput.files[0];
-  if (file) {
-    fileLabel.textContent = "Change PDF";
-    filePick.classList.add("has-file");
-    fileChosen.hidden = false;
-    fileChosen.textContent = `${file.name} (${formatBytes(file.size)})`;
-  } else {
-    fileLabel.textContent = "Choose PDF";
-    filePick.classList.remove("has-file");
-    fileChosen.hidden = true;
-    fileChosen.textContent = "";
-  }
+  filePick.classList.toggle("has-file", Boolean(file));
+  fileLabel.textContent = file ? "Change" : "Choose PDF";
+  fileChosen.textContent = file ? `${file.name} (${formatBytes(file.size)})` : "No file chosen";
+  fileChosen.title = file ? file.name : "";
 }
 
-pdfInput.addEventListener("change", updateFileChosen);
+pdfInput.addEventListener("change", onFileChosen);
+
+/** Bumped per file pick, so a slow check for an earlier file can't win. */
+let fileCheckToken = 0;
+
+/**
+ * Password field state. The field is always in the layout (so nothing jumps);
+ * it is enabled only when pdf.js (in the browser, nothing uploaded) says the
+ * picked PDF needs a password.
+ *   idle: no file yet · checking · needed · not-needed · too-big
+ */
+let passwordState = "idle";
+
+const PASSWORD_HINTS = {
+  idle: "Choose a PDF first.",
+  checking: "Checking PDF…",
+  needed: "Usually the first 4 letters of the name in CAPITALS plus the birth year, e.g. NAME1990.",
+  "not-needed": "No password needed: this PDF isn't protected.",
+  "too-big": "This file is over the 20 MB limit.",
+};
+
+function setPasswordState(state) {
+  passwordState = state;
+  const needed = state === "needed";
+  passwordField.dataset.state = state;
+  passwordInput.disabled = !needed;
+  passwordInput.required = needed;
+  passwordInput.placeholder = state === "not-needed" ? "Not needed" : "PDF password";
+  if (!needed) passwordInput.value = "";
+  passwordHint.textContent = PASSWORD_HINTS[state];
+  updatePreviewButton();
+}
+
+async function onFileChosen() {
+  updateFileChosen();
+  errorEl.hidden = true;
+  passwordInput.value = "";
+  const token = ++fileCheckToken;
+  const file = pdfInput.files[0];
+  if (!file) {
+    setPasswordState("idle");
+    return;
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    setPasswordState("too-big");
+    showError(new Error("File too large. The limit is 20 MB."));
+    return;
+  }
+  setPasswordState("checking");
+  let needs;
+  try {
+    needs = await pdfNeedsPassword(file);
+  } catch {
+    needs = true; // can't tell (damaged file?): ask for a password, the safe default
+  }
+  if (token !== fileCheckToken) return;
+  setPasswordState(needs ? "needed" : "not-needed");
+  (needs ? passwordInput : previewBtn).focus();
+}
+
+/** Preview is always shown; it is enabled only when there is something to open. */
+function updatePreviewButton() {
+  const ready =
+    passwordState === "not-needed" ||
+    (passwordState === "needed" && passwordInput.value.length > 0);
+  previewBtn.disabled = !ready;
+}
+
+passwordInput.addEventListener("input", updatePreviewButton);
+
+async function pdfNeedsPassword(file) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  // Without an onPassword handler pdf.js rejects with PasswordException when
+  // the PDF has an open password; owner-only (permissions) PDFs just open.
+  const task = pdfjsLib.getDocument({ data, isEvalSupported: false });
+  try {
+    const doc = await task.promise;
+    await doc.destroy();
+    return false;
+  } catch (err) {
+    if (err?.name === "PasswordException") return true;
+    throw err;
+  } finally {
+    task.destroy();
+  }
+}
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   errorEl.hidden = true;
   const file = pdfInput.files[0];
-  const password = document.getElementById("password").value;
+  const password = passwordState === "needed" ? passwordInput.value : "";
   if (!file) return;
   // The server rejects bigger uploads without reading them and closes the
   // connection, which fetch can report as "Cannot reach the server".
@@ -165,7 +248,7 @@ document.getElementById("again").addEventListener("click", () => {
   upload.hidden = false;
   pagesEl.innerHTML = "";
   pdfInput.value = "";
-  updateFileChosen();
+  onFileChosen();
   resetApp();
 });
 
@@ -457,10 +540,13 @@ function updateDocbar() {
   }
   if (!app.validated) {
     docbar.classList.add("preview");
-    docbarTitle.textContent = "Preview: click the ? mark to verify";
-    docbarSub.textContent = app.widgets.some(hasVisibleBox)
+    const visible = app.widgets.some(hasVisibleBox);
+    docbarTitle.textContent = visible
+      ? "Preview: click the ? mark to verify"
+      : "Preview: click the page to verify";
+    docbarSub.textContent = visible
       ? "The stamp shown is from your PDF until you verify"
-      : "This signature has no visible box: click the page to verify";
+      : "This signature has no visible box, so the whole page is the target";
     return;
   }
   docbar.classList.toggle("valid", app.valid);

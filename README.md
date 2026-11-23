@@ -1,8 +1,12 @@
 # e-Aadhaar PDF Signature Verifier
 
-**Current release: [v2.3.5](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.5)** · [Changelog](CHANGELOG.md)
+**Current release: [v2.3.6](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.6)** · [Changelog](CHANGELOG.md)
 
 **Local e-Aadhaar (Aadhar) PDF digital signature validation**: pyHanko, CCA India 2022, Acrobat-style green tick. No upload. Not affiliated with UIDAI or Adobe.
+
+![A verified e-Aadhaar in the viewer: blue "Signed and all signatures are valid" bar and the green Signature valid tick on the document (personal details redacted)](docs/verified-2.3.6.jpg)
+
+![Three steps: 1. Choose your e-Aadhaar, 2. Enter its password, 3. Click the ? to verify (verification details: UIDAI signer, CCA India 2022 trust anchor, integrity intact)](docs/steps-2.3.6.jpg)
 
 Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar PDF using India's **CCA PKI** trust roots. Everything runs **on your machine**. No cloud, no account.
 
@@ -399,7 +403,7 @@ After `./setup.sh` (or `setup.bat`), run:
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.5**.
+See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.6**.
 
 ---
 

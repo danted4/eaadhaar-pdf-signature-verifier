@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- New look: a deep ink backdrop with soft colour glows, a solid top strip with a brand mark, a status pill and the release version (e.g. v2.3.6), richer verdict colours in the document bar (brown preview, blue valid, red invalid, a slate sheen while verifying), and a gentler verification popup. Motion is brief and turns off for people who prefer reduced motion
+- The upload card is a fixed-slot form (PDF file, Password, Preview) that never moves between states: the password field is enabled only when the chosen PDF needs one, which is detected in the browser before anything is uploaded, and Preview stays disabled until there is something to open
+- PDFs that only have an owner (permissions) password open without asking for one
+- README shows screenshots of the app (personal details redacted)
+
+### Fixed
+
+- With a signature that has no visible box, the bar title now says to click the page instead of the `?` mark
+
 ## [2.3.5] - 2026-11-23
 
 ### Added
@@ -130,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy `everify.py` monolithic entry point (use `./everify-app` instead)
 - Prototype stamp lab from the public repository (local dev only, gitignored)
 
+[Unreleased]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/compare/v2.3.5...HEAD
 [2.3.5]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.5
 [2.3.4]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.4
 [2.3.3]: https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.3

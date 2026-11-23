@@ -183,6 +183,17 @@ class VerifyTests(unittest.TestCase):
             verify.preview_pdf_bytes(self.encrypted, None)
         self.assertIn("password-protected", str(cm.exception))
 
+    def test_owner_password_only_needs_no_password(self) -> None:
+        # Encrypted for permissions only (empty open password): the viewer
+        # doesn't show a password field, so the server must open it without one.
+        import pikepdf
+        from io import BytesIO
+
+        buf = BytesIO()
+        pikepdf.open(BytesIO(self.signed)).save(buf, encryption=pikepdf.Encryption(owner="owner-only", user="", R=6))
+        widgets = verify.preview_pdf_bytes(buf.getvalue(), None)["widgets"]
+        self.assertEqual(len(widgets), 1)
+
     def test_wrong_password(self) -> None:
         with self.assertRaises(ValueError) as cm:
             verify.preview_pdf_bytes(self.encrypted, "nope")

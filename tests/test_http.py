@@ -73,6 +73,16 @@ def _parse_csp(header: str | None) -> dict[str, set[str]]:
     return policy
 
 
+class VersionTests(unittest.TestCase):
+    def test_app_version_matches_readme_current_release(self) -> None:
+        import re
+
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        match = re.search(r"\*\*Current release: \[v(\d+\.\d+\.\d+)\]", readme)
+        self.assertIsNotNone(match, "README 'Current release' line not found")
+        self.assertEqual(server.APP_VERSION, match.group(1))
+
+
 class ParseHelpersTests(unittest.TestCase):
     def test_content_length_rejects_negative(self) -> None:
         with self.assertRaises(ValueError) as cm:
@@ -263,6 +273,17 @@ class HttpServerTests(unittest.TestCase):
         for host in (f"127.0.0.1:{self.port}", f"localhost:{self.port}", f"LOCALHOST:{self.port}", "localhost:9000", "127.0.0.1", "default"):
             with self.subTest(host=host):
                 self.assertEqual(self._status_with_host("GET", "/", host), 200)
+
+    def test_index_shows_release_version(self) -> None:
+        conn = self._conn()
+        try:
+            conn.request("GET", "/")
+            resp = conn.getresponse()
+            html = resp.read().decode("utf-8")
+        finally:
+            conn.close()
+        self.assertIn(f"v{server.APP_VERSION}</span>", html)
+        self.assertNotIn("__APP_VERSION__", html)
 
     def test_static_path_traversal(self) -> None:
         conn = self._conn()

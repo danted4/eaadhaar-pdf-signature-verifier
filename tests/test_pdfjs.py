@@ -117,6 +117,17 @@ class PdfJsVendorTests(unittest.TestCase):
             self.assertIn("position: sticky", block.group(1), selector)
         self.assertRegex(css, r"\.docbar \{[^}]*top: var\(--chrome-h\)")
 
+    def test_form_slots_are_fixed(self) -> None:
+        # Fixed slots: the password field is always present but starts disabled
+        # (enabled only once pdf.js says the PDF needs one), and Preview is
+        # always present but starts disabled; nothing is shown or hidden.
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<input type="password" id="password"[^>]*\bdisabled>')
+        self.assertRegex(html, r'<button type="submit" id="previewBtn"[^>]*\bdisabled>')
+        self.assertNotRegex(html, r'id="(password|previewBtn|passwordField|filePick)"[^>]*\bhidden\b')
+        js = _strip_js_comments((STATIC / "viewer.js").read_text(encoding="utf-8"))
+        self.assertIn('err?.name === "PasswordException"', js)
+
     def test_client_upload_cap_matches_server(self) -> None:
         import sys
 

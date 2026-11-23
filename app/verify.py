@@ -214,7 +214,11 @@ def _open_reader(pdf_bytes: bytes, password: str | None) -> PdfFileReader:
     reader = PdfFileReader(io.BytesIO(pdf_bytes), strict=False)
     if reader.encrypted:
         if not password:
-            raise ValueError("PDF is password-protected")
+            # Owner-password-only PDFs (permissions, no open password) decrypt
+            # with an empty user password; the viewer doesn't ask for one then.
+            if reader.decrypt("").status == AuthStatus.FAILED:
+                raise ValueError("PDF is password-protected")
+            return reader
         if reader.decrypt(password).status == AuthStatus.FAILED:
             raise ValueError("Incorrect password")
     return reader
