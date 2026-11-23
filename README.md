@@ -63,6 +63,10 @@ This tool is a small, local alternative to Adobe Acrobat for Indian PKI–signed
 
 - **Python 3.10+** (3.11 or 3.12 recommended)  
 - macOS, Linux, or Windows with a browser  
+- **Git** *(optional)*: only needed to `git clone` the repo. Without Git, download the source code directly:
+  1. Open the [latest release](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/latest) and download **Source code (zip)**.
+  2. Extract it (on Windows: right-click → **Extract All**).
+  3. Open a terminal in the extracted folder, `eaadhaar-pdf-signature-verifier-<version>`, skip the `git clone` and `cd` steps below, and continue with setup.
 
 ### macOS / Linux
 
