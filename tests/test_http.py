@@ -254,12 +254,13 @@ class HttpServerTests(unittest.TestCase):
     def test_foreign_host_is_rejected(self) -> None:
         # DNS rebinding: a page on evil.example resolving to 127.0.0.1 sends its own Host.
         for method, path in (("GET", "/"), ("GET", "/static/viewer.js"), ("POST", "/api/validate")):
-            for host in ("evil.example", f"evil.example:{self.port}", "127.0.0.1:1", "", None):
+            for host in ("evil.example", f"evil.example:{self.port}", "127.0.0.1.evil.example", "localhost.evil:80", "127.0.0.1:x", "", None):
                 with self.subTest(method=method, path=path, host=host):
                     self.assertEqual(self._status_with_host(method, path, host), 403)
 
     def test_local_hosts_are_allowed(self) -> None:
-        for host in (f"127.0.0.1:{self.port}", f"localhost:{self.port}", f"LOCALHOST:{self.port}", "default"):
+        # Any port: SSH tunnels and port forwarding arrive on a different port.
+        for host in (f"127.0.0.1:{self.port}", f"localhost:{self.port}", f"LOCALHOST:{self.port}", "localhost:9000", "127.0.0.1", "default"):
             with self.subTest(host=host):
                 self.assertEqual(self._status_with_host("GET", "/", host), 200)
 

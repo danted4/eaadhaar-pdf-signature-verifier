@@ -98,17 +98,18 @@ class Handler(BaseHTTPRequestHandler):
         super().end_headers()
 
     def _host_allowed(self) -> bool:
-        """Only answer requests addressed to this local server.
+        """Only answer requests addressed to this machine by name.
 
         A page on another site can point its own hostname at 127.0.0.1 (DNS
-        rebinding); its requests then carry that hostname in Host, not ours.
+        rebinding); its requests then carry that hostname in Host. The hostname
+        is what matters, so any port is accepted: SSH tunnels and port
+        forwarding reach us on a different port than the one we bound.
         """
-        port = self.server.server_address[1]
         host = (self.headers.get("Host") or "").strip().lower()
-        allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
-        if port == 80:
-            allowed |= {"127.0.0.1", "localhost"}
-        return host in allowed
+        name, sep, port = host.rpartition(":")
+        if not sep:
+            name, port = host, ""
+        return name in ("127.0.0.1", "localhost") and (port == "" or port.isdigit())
 
     def _reject_foreign_host(self) -> bool:
         if self._host_allowed():

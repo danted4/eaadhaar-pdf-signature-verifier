@@ -168,6 +168,16 @@ class VerifyTests(unittest.TestCase):
         widget = verify.preview_pdf_bytes(signed, None)["widgets"][0]
         self.assertEqual(widget["mediaBox"], [0.0, 0.0, 300.0, 400.0])
 
+    def test_signer_cn_with_comma_is_read_from_the_certificate(self) -> None:
+        d = self.root / "comma-cn"
+        d.mkdir(exist_ok=True)
+        ca, leaf, key = make_ca_and_leaf(d, leaf_cn="Doe, John")
+        signed = sign_pdf_bytes(blank_pdf_bytes(), leaf, key, ca)
+        with mock.patch.object(verify, "CERTS_DIR", d):
+            result = verify.validate_uploaded_bytes(signed, None)
+        self.assertEqual(result["reports"][0]["signerCn"], "Doe, John")
+        self.assertEqual(result["widgets"][0]["signerCn"], "Doe, John")
+
     def test_missing_password(self) -> None:
         with self.assertRaises(ValueError) as cm:
             verify.preview_pdf_bytes(self.encrypted, None)

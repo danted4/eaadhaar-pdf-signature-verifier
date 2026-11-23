@@ -220,6 +220,21 @@ def _open_reader(pdf_bytes: bytes, password: str | None) -> PdfFileReader:
     return reader
 
 
+def _signer_cn(cert, subject: str) -> str:
+    """The signer's common name, read from the certificate itself.
+
+    Parsing the human-friendly subject string breaks on a CN containing a
+    comma ("Doe, John"), so that is only the fallback.
+    """
+    if cert is not None:
+        cn = cert.subject.native.get("common_name")
+        if isinstance(cn, list):  # multi-valued RDN
+            cn = ", ".join(str(part) for part in cn)
+        if cn:
+            return str(cn)
+    return _cn_from_subject(subject)
+
+
 def _cn_from_subject(subject: str) -> str:
     if "Common Name: " in subject:
         return subject.split("Common Name: ")[1].split(",")[0].strip()
@@ -323,7 +338,7 @@ def _signature_report(status) -> dict:
     return {
         "valid": bool(status.bottom_line),
         "signer": signer,
-        "signerCn": _cn_from_subject(signer),
+        "signerCn": _signer_cn(cert, signer),
         "signingTime": str(status.signer_reported_dt or "Unknown"),
         "validatedAt": str(status.validation_time or ""),
         "trustAnchor": trust_anchor,
@@ -345,6 +360,7 @@ def _apply_signature_status(widget: dict, status) -> dict:
         {
             "valid": report["valid"],
             "signer": report["signer"],
+            "signerCn": report["signerCn"],
             "signingTime": report["signingTime"],
             "trustAnchor": report["trustAnchor"],
             "failureReason": report["failureReason"],

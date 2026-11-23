@@ -232,8 +232,10 @@ function printDocument() {
   const onNextInteraction = () => cleanup();
   const cleanup = () => {
     cleanedUp = true;
-    if (token === printToken) printing = false;
-    document.title = PAGE_TITLE;
+    if (token === printToken) {
+      printing = false;
+      document.title = PAGE_TITLE;
+    }
     iframe?.remove();
     win?.removeEventListener("afterprint", cleanup);
     document.removeEventListener("pointerdown", onNextInteraction, true);
@@ -268,13 +270,13 @@ function printDocument() {
     if (!sheet) throw new Error("Could not prepare the print view.");
     // Without these rules the 600 DPI images print at natural size (a corner
     // per sheet), so refuse to print rather than waste paper.
+    let armSheetTimeout = () => {};
     const sheetReady = sheet.sheet
       ? Promise.resolve()
       : new Promise((resolve, reject) => {
+          let timer = null;
           const stylesFailed = () =>
             reject(new Error("Could not load print styles. Is the app still running?"));
-          // A hung server never fires load or error; don't leave Print locked.
-          const timer = setTimeout(stylesFailed, PRINT_STYLES_TIMEOUT_MS);
           sheet.onload = () => {
             clearTimeout(timer);
             resolve();
@@ -282,6 +284,15 @@ function printDocument() {
           sheet.onerror = () => {
             clearTimeout(timer);
             stylesFailed();
+          };
+          // A hung server never fires load or error; don't leave Print locked.
+          // Armed only after the (synchronous, possibly slow) image encoding
+          // below, so a long encode can't beat an already-queued load event.
+          armSheetTimeout = () => {
+            timer = setTimeout(
+              () => (sheet.sheet ? resolve() : stylesFailed()),
+              PRINT_STYLES_TIMEOUT_MS,
+            );
           };
         });
     // Real handling is the Promise.all below; this only keeps a rejection from
@@ -293,6 +304,7 @@ function printDocument() {
       img.src = canvas.toDataURL("image/png");
       doc.body.appendChild(img);
     }
+    armSheetTimeout();
     const imagesReady = Promise.all(
       [...doc.images].map((img) =>
         img.complete
@@ -317,6 +329,7 @@ function printDocument() {
         try {
           win.focus();
           win.print();
+          printBtn.focus({ preventScroll: true });
           if (!cleanedUp) {
             document.addEventListener("pointerdown", onNextInteraction, { capture: true, once: true });
             document.addEventListener("keydown", onNextInteraction, { capture: true, once: true });
@@ -445,7 +458,9 @@ function updateDocbar() {
   if (!app.validated) {
     docbar.classList.add("preview");
     docbarTitle.textContent = "Preview: click the ? mark to verify";
-    docbarSub.textContent = "The stamp shown is from your PDF until you verify";
+    docbarSub.textContent = app.widgets.some(hasVisibleBox)
+      ? "The stamp shown is from your PDF until you verify"
+      : "This signature has no visible box: click the page to verify";
     return;
   }
   docbar.classList.toggle("valid", app.valid);
@@ -458,7 +473,7 @@ function updateDocbar() {
   docbarSub.textContent = reason
     ? `Reason: ${reason}.`
     : first
-      ? first.signer.split(",")[0].replace("Common Name: ", "")
+      ? first.signerCn || cnFromSigner(first.signer)
       : "";
 }
 
@@ -569,12 +584,19 @@ function hitWidget(event, canvas, viewport, pageIndex) {
   const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
   const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
   for (const widget of widgets) {
+    // No visible box (invisible signature): the whole page is the target.
+    if (!hasVisibleBox(widget)) return true;
     const box = widgetCanvasRect(widget, viewport);
     if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
       return true;
     }
   }
   return false;
+}
+
+function hasVisibleBox(widget) {
+  const [x1, y1, x2, y2] = widget.rect || [0, 0, 0, 0];
+  return Math.abs(x2 - x1) > 0 && Math.abs(y2 - y1) > 0;
 }
 
 /**
@@ -791,7 +813,11 @@ function bodyLines(widget) {
   const fromPdf =
     ap.n2Lines && ap.n2Lines.length
       ? [...ap.n2Lines]
-      : ["Digitally signed by", ...wrapLine(cnFromSigner(widget.signer), 34, 2), "Date:"];
+      : [
+          "Digitally signed by",
+          ...wrapLine(widget.signerCn || cnFromSigner(widget.signer), 34, 2),
+          ...(formatSigningDate(widget.signingTime) ? ["Date:"] : []),
+        ];
   const dateLine = formatSigningDate(widget.signingTime);
   if (dateLine) {
     const dateIdx = fromPdf.findIndex((l) => /^Date:/i.test(l));
@@ -866,7 +892,13 @@ function drawValidityMark(ctx, widget, viewport, valid) {
   const oy = (STAMP_CONFIG.stampOffsetY ?? 0) * scale;
 
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(boxL, boxT, boxW, boxH);
+  if (ap.n2Lines?.length) {
+    // Acrobat-layered appearance (every e-Aadhaar): unchanged tuned cover.
+    ctx.fillRect(boxL, boxT, boxW, boxH);
+  } else {
+    // Other appearances fall back to a 50x30 form size; cover the whole box.
+    ctx.fillRect(boxL, boxT, Math.max(boxW, (x2 - x1) * scale), Math.max(boxH, (y2 - y1) * scale));
+  }
 
   drawStamp(ctx, stampScale, true, {
     ...stampOpts(widget),

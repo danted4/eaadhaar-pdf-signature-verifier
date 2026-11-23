@@ -13,16 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Print never stays locked when the print stylesheet hangs (it gives up after 10 seconds with an error)
+- Print never stays locked when the print stylesheet hangs (it gives up 10 seconds after the page images are ready, with an error)
 - After printing in a browser that never reports the dialog closed, the tab title is restored on the next click or key press
 - "Open another" while the high-resolution print copy is still being built no longer leaves the old page in it
 - A print superseded by "Open another" fails quietly instead of showing an error on the upload screen; no more "unhandled rejection" console noise
 - Signed PDFs other than e-Aadhaar: a page whose MediaBox is inherited from its parent, or a signature field with a separate widget, no longer fails the preview; rotated or cropped pages get the click target and the tick in the right place, and on a rotated page the tick turns with the page
-- The green stamp on a non-e-Aadhaar PDF names the actual signer; it used to fall back to "DS Unique Identification Authority of India" for any signer
+- The green stamp on a non-e-Aadhaar PDF names the actual signer; it used to fall back to "DS Unique Identification Authority of India" for any signer. A signer name containing a comma ("Doe, John") is no longer cut short in the bar
+- A signature without a visible box can be verified: click anywhere on its page (the bar says so)
+- After printing, keyboard focus returns to the page
 
 ### Security
 
-- The server only answers requests addressed to `127.0.0.1:<port>` or `localhost:<port>` (DNS-rebinding hardening)
+- The server only answers requests addressed to `127.0.0.1` or `localhost` (any port, so SSH tunnels and port forwarding still work). This blocks DNS-rebinding attacks
 
 ### Removed
 
