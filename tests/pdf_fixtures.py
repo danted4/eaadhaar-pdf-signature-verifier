@@ -27,6 +27,7 @@ def make_ca_and_leaf(
     *,
     leaf_not_before: datetime | None = None,
     leaf_not_after: datetime | None = None,
+    leaf_cn: str = "Test Signer",
 ) -> tuple[Path, Path, Path]:
     """Write a test root CA and a signing leaf into `tmp`.
 
@@ -63,7 +64,7 @@ def make_ca_and_leaf(
     )
     leaf = (
         x509.CertificateBuilder()
-        .subject_name(_name("Test Signer"))
+        .subject_name(_name(leaf_cn))
         .issuer_name(ca_cert.subject)
         .public_key(leaf_key.public_key())
         .serial_number(2)

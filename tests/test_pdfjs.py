@@ -100,6 +100,23 @@ class PdfJsVendorTests(unittest.TestCase):
         # .docbar-sub styles the verdict/reason line above the alert.
         self.assertIn('id="docbar-sub" class="docbar-sub"', html)
 
+    def test_stamp_fallback_never_claims_uidai(self) -> None:
+        # bodyLines() falls back when a PDF has no Acrobat body lines (never an
+        # e-Aadhaar). It must name the real signer, not UIDAI.
+        js = _strip_js_comments((STATIC / "viewer.js").read_text(encoding="utf-8"))
+        body = re.search(r"function bodyLines\(widget\) \{([\s\S]*?)\n\}", js)
+        self.assertIsNotNone(body, "bodyLines() not found")
+        self.assertNotIn("Identification Authority", body.group(1))
+        self.assertIn("cnFromSigner(widget.signer)", body.group(1))
+
+    def test_header_and_docbar_are_sticky(self) -> None:
+        css = (STATIC / "styles.css").read_text(encoding="utf-8")
+        for selector in (".chrome", ".docbar"):
+            block = re.search(re.escape(selector) + r" \{([^}]*)\}", css)
+            self.assertIsNotNone(block, selector)
+            self.assertIn("position: sticky", block.group(1), selector)
+        self.assertRegex(css, r"\.docbar \{[^}]*top: var\(--chrome-h\)")
+
     def test_client_upload_cap_matches_server(self) -> None:
         import sys
 

@@ -153,6 +153,31 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(report["failureReason"], "certificate does not chain to a bundled CCA India root")
         self.assertIsNone(report["trustAnchor"])
 
+    def test_preview_with_inherited_media_box(self) -> None:
+        # /MediaBox on the Pages node instead of the page (allowed by the spec);
+        # this used to raise KeyError('/MediaBox') and fail the preview.
+        import pikepdf
+        from io import BytesIO
+
+        pdf = pikepdf.open(BytesIO(blank_pdf_bytes()))
+        pdf.Root.Pages.MediaBox = pikepdf.Array([0, 0, 300, 400])
+        del pdf.pages[0].obj["/MediaBox"]
+        buf = BytesIO()
+        pdf.save(buf)
+        signed = sign_pdf_bytes(buf.getvalue(), self.leaf_cert, self.leaf_key, self.ca)
+        widget = verify.preview_pdf_bytes(signed, None)["widgets"][0]
+        self.assertEqual(widget["mediaBox"], [0.0, 0.0, 300.0, 400.0])
+
+    def test_signer_cn_with_comma_is_read_from_the_certificate(self) -> None:
+        d = self.root / "comma-cn"
+        d.mkdir(exist_ok=True)
+        ca, leaf, key = make_ca_and_leaf(d, leaf_cn="Doe, John")
+        signed = sign_pdf_bytes(blank_pdf_bytes(), leaf, key, ca)
+        with mock.patch.object(verify, "CERTS_DIR", d):
+            result = verify.validate_uploaded_bytes(signed, None)
+        self.assertEqual(result["reports"][0]["signerCn"], "Doe, John")
+        self.assertEqual(result["widgets"][0]["signerCn"], "Doe, John")
+
     def test_missing_password(self) -> None:
         with self.assertRaises(ValueError) as cm:
             verify.preview_pdf_bytes(self.encrypted, None)
@@ -211,6 +236,41 @@ class FailureReasonPrecedenceTests(unittest.TestCase):
         for status, expected in cases:
             with self.subTest(expected=expected):
                 self.assertEqual(verify._failure_reason(status), expected)
+
+
+class GeometryHelperTests(unittest.TestCase):
+    """Field/widget shapes that real signers produce but e-Aadhaar doesn't."""
+
+    def test_widget_is_the_merged_field(self) -> None:
+        from pyhanko.pdf_utils.generic import ArrayObject, DictionaryObject, FloatObject, NameObject
+
+        field = DictionaryObject({NameObject("/Rect"): ArrayObject([FloatObject(v) for v in (1, 2, 3, 4)])})
+        self.assertIs(verify._widget_annot(field), field)
+        self.assertEqual(verify._rect(field), [1.0, 2.0, 3.0, 4.0])
+
+    def test_widget_is_a_kid(self) -> None:
+        from pyhanko.pdf_utils.generic import ArrayObject, DictionaryObject, FloatObject, NameObject
+
+        widget = DictionaryObject({NameObject("/Rect"): ArrayObject([FloatObject(v) for v in (10, 20, 60, 50)])})
+        field = DictionaryObject({NameObject("/Kids"): ArrayObject([widget])})
+        self.assertIs(verify._widget_annot(field), widget)
+        self.assertEqual(verify._rect(verify._widget_annot(field)), [10.0, 20.0, 60.0, 50.0])
+
+    def test_no_widget_is_an_invisible_rect(self) -> None:
+        from pyhanko.pdf_utils.generic import DictionaryObject
+
+        self.assertEqual(verify._rect(verify._widget_annot(DictionaryObject())), [0.0, 0.0, 0.0, 0.0])
+
+    def test_inherited_lookup_walks_parents_and_stops_on_cycles(self) -> None:
+        from pyhanko.pdf_utils.generic import ArrayObject, DictionaryObject, NameObject, NumberObject
+
+        root = DictionaryObject({NameObject("/MediaBox"): ArrayObject([NumberObject(v) for v in (0, 0, 10, 20)])})
+        mid = DictionaryObject({NameObject("/Parent"): root})
+        page = DictionaryObject({NameObject("/Parent"): mid})
+        self.assertEqual([float(v) for v in verify._inherited(page, "/MediaBox")], [0.0, 0.0, 10.0, 20.0])
+        loop = DictionaryObject()
+        loop[NameObject("/Parent")] = loop  # malformed self-parent
+        self.assertIsNone(verify._inherited(loop, "/MediaBox"))
 
 
 if __name__ == "__main__":

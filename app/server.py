@@ -97,6 +97,26 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
 
+    def _host_allowed(self) -> bool:
+        """Only answer requests addressed to this machine by name.
+
+        A page on another site can point its own hostname at 127.0.0.1 (DNS
+        rebinding); its requests then carry that hostname in Host. The hostname
+        is what matters, so any port is accepted: SSH tunnels and port
+        forwarding reach us on a different port than the one we bound.
+        """
+        host = (self.headers.get("Host") or "").strip().lower()
+        name, sep, port = host.rpartition(":")
+        if not sep:
+            name, port = host, ""
+        return name in ("127.0.0.1", "localhost") and (port == "" or port.isdigit())
+
+    def _reject_foreign_host(self) -> bool:
+        if self._host_allowed():
+            return False
+        self._send(403, b"Forbidden host", "text/plain")
+        return True
+
     def log_message(self, fmt, *args):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
@@ -115,6 +135,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(payload).encode(), "application/json")
 
     def do_GET(self):
+        if self._reject_foreign_host():
+            return
         _purge()
         parsed = urlparse(self.path)
         path = parsed.path
@@ -160,6 +182,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
+        if self._reject_foreign_host():
+            return
         _purge()
         parsed = urlparse(self.path)
         path = parsed.path
