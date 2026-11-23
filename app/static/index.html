@@ -4,28 +4,52 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>e-Aadhaar PDF Signature Verifier</title>
-  <link rel="stylesheet" href="/static/styles.css?v=11">
+  <link rel="stylesheet" href="/static/styles.css?v=18">
   <script src="/static/pdfjs/pdf.min.js"></script>
 </head>
 <body>
   <header class="chrome" id="chrome">
-    <div class="brand">e-Aadhaar PDF Verifier</div>
-    <div class="hint">Local validation · original PDF unchanged</div>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">e-Aadhaar <span class="brand-sub">PDF Verifier</span></span>
+      <span class="brand-version" title="Release version">v__APP_VERSION__</span>
+    </div>
+    <div class="hint"><span class="hint-dot" aria-hidden="true"></span>Local validation · original PDF unchanged</div>
   </header>
 
   <section id="upload" class="panel">
-    <h1>Open e-Aadhaar</h1>
-    <p class="lede">Opens your e-Aadhaar as-is (with the original ? stamp), then verifies when you click the signature: the same booth flow as Acrobat. This is not Adobe software.</p>
+    <div class="panel-head">
+      <span class="panel-icon" aria-hidden="true"></span>
+      <div>
+        <h1>Open e-Aadhaar</h1>
+        <p class="lede">Opens your e-Aadhaar as-is (with the original ? stamp), then verifies when you click the signature: the same booth flow as Acrobat. This is not Adobe software.</p>
+      </div>
+    </div>
+    <!-- Fixed slots: every element keeps its place in every state; only the
+         text inside changes (see onFileChosen in viewer.js). -->
     <form id="form">
-      <label class="file" id="filePick">
-        <input type="file" id="pdf" accept="application/pdf" required>
-        <span id="fileLabel">Choose PDF</span>
-      </label>
-      <input type="password" id="password" placeholder="PDF password (e.g. NAME1990)" autocomplete="off">
-      <button type="submit">Preview</button>
+      <div class="field">
+        <span class="field-label">PDF file</span>
+        <label class="file" id="filePick">
+          <input type="file" id="pdf" accept="application/pdf" required>
+          <span class="file-icon" aria-hidden="true"></span>
+          <span id="fileChosen" class="file-name">No file chosen</span>
+          <span id="fileLabel" class="file-button">Choose PDF</span>
+        </label>
+      </div>
+      <div class="field" id="passwordField">
+        <label for="password" class="field-label">Password</label>
+        <input type="password" id="password" placeholder="PDF password" autocomplete="off" aria-describedby="passwordHint" disabled>
+        <p id="passwordHint" class="field-hint" aria-live="polite">Choose a PDF first.</p>
+      </div>
+      <button type="submit" id="previewBtn" class="preview-btn" disabled>Preview</button>
     </form>
-    <p id="fileChosen" class="file-chosen" hidden></p>
-    <p id="error" class="error" hidden></p>
+    <p id="error" class="error" role="alert" hidden></p>
+    <ul class="trust" aria-label="How this works">
+      <li>Runs on this computer</li>
+      <li>Original PDF unchanged</li>
+      <li>India PKI trust roots</li>
+    </ul>
   </section>
 
   <div id="workspace" hidden>
@@ -63,6 +87,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/viewer.js?v=31"></script>
+  <script type="module" src="/static/viewer.js?v=36"></script>
 </body>
 </html>

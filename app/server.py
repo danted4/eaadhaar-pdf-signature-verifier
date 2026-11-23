@@ -26,6 +26,11 @@ TTL_SECONDS = 30 * 60
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
 
+# Single source of the release number shown in the UI (filled into index.html
+# when served). Bump it with README's "Current release" line and CHANGELOG;
+# tests/test_http.py fails if it drifts from the README.
+APP_VERSION = "2.3.6"
+
 # No 'unsafe-eval': a crafted PDF must not be able to run script on this page
 # (pdf.js CVE-2024-4367) and fake the green tick. No 'unsafe-inline' either:
 # the print iframe uses CSSOM and /static/print-frame.css. pdf.js loads fonts
@@ -111,6 +116,10 @@ class Handler(BaseHTTPRequestHandler):
             name, port = host, ""
         return name in ("127.0.0.1", "localhost") and (port == "" or port.isdigit())
 
+    @staticmethod
+    def _index_html() -> bytes:
+        return (STATIC / "index.html").read_bytes().replace(b"__APP_VERSION__", APP_VERSION.encode())
+
     def _reject_foreign_host(self) -> bool:
         if self._host_allowed():
             return False
@@ -142,13 +151,16 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path in ("/", "/index.html"):
-            self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
+            self._send(200, self._index_html(), "text/html; charset=utf-8")
             return
         if path.startswith("/static/"):
             name = path[len("/static/") :]
             file = STATIC / name
             if not file.resolve().is_relative_to(STATIC.resolve()) or not file.is_file():
                 self._send(404, b"not found", "text/plain")
+                return
+            if file.name == "index.html":  # same page as "/", version filled in
+                self._send(200, self._index_html(), "text/html; charset=utf-8")
                 return
             types = {".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml"}
             self._send(200, file.read_bytes(), types.get(file.suffix, "application/octet-stream"))

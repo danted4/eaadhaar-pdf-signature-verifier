@@ -1,8 +1,12 @@
 # e-Aadhaar PDF Signature Verifier
 
-**Current release: [v2.3.5](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.5)** · [Changelog](CHANGELOG.md)
+**Current release: [v2.3.6](https://github.com/danted4/eaadhaar-pdf-signature-verifier/releases/tag/v2.3.6)** · [Changelog](CHANGELOG.md)
 
 **Local e-Aadhaar (Aadhar) PDF digital signature validation**: pyHanko, CCA India 2022, Acrobat-style green tick. No upload. Not affiliated with UIDAI or Adobe.
+
+![A verified e-Aadhaar in the viewer: blue "Signed and all signatures are valid" bar and the green Signature valid tick on the document (personal details redacted)](docs/verified-2.3.6.jpg)
+
+![Three steps: 1. Choose your e-Aadhaar, 2. Enter its password, 3. Click the ? to verify (verification details: UIDAI signer, CCA India 2022 trust anchor, integrity intact)](docs/steps-2.3.6.jpg)
 
 Validate the **UIDAI digital signature** embedded in your downloaded e-Aadhaar PDF using India's **CCA PKI** trust roots. Everything runs **on your machine**. No cloud, no account.
 
@@ -202,10 +206,10 @@ Steps **2–10** are the same on every platform (browser UI). Only **step 1** (s
 |------|------------|---------------------|
 | **1** | Start the viewer (see platform table above) | Terminal prints the local URL |
 | **2** | Open **http://127.0.0.1:8765/** in Chrome, Firefox, or Safari | Upload screen |
-| **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears below the button |
-| **4** | Type your **PDF password** in the password field | |
+| **3** | Click **Choose PDF** and select your e-Aadhaar `.pdf` file | File name appears in the **PDF file** field; the app checks (in the browser) whether it needs a password |
+| **4** | Type the **PDF password** (first 4 letters of the name in CAPITALS + birth year, e.g. `NAME1990`) | The **Password** field is enabled only when the PDF needs one; otherwise it says no password is needed |
 | **5** | Click **Preview** | Document opens; brown bar asks you to click the **?** mark to verify |
-| **6** | Find the **yellow ?** signature box (top of the Aadhaar page) and **click it** | Brief “Verifying signature…” then a **verification popup** |
+| **6** | Find the **yellow ?** signature box (lower left of the Aadhaar page) and **click it** | Brief “Verifying signature…” then a **verification popup** |
 | **7** | Read the popup (signer, signing time, CCA trust chain, how validation works) | UIDAI signer, **CCA India 2022** trust anchor, integrity checks |
 | **8** | If valid → click **OK**. If invalid → click **Close** | Valid: blue bar + green **“Signature valid”** tick on the document |
 | **9** | (Optional) Click **Print** for a paper copy | Print uses the on-screen view with the green tick overlay |
@@ -252,7 +256,7 @@ This is the same **kind** of check Adobe Acrobat performs for “Signature valid
 ### Usage flow (diagram)
 
 1. **Choose PDF**: your password-protected e-Aadhaar file  
-2. Enter the **PDF password** (the one you set when downloading from UIDAI)  
+2. Enter the **PDF password** if asked (first 4 letters of the name in CAPITALS + birth year)  
 3. Click **Preview**: the document opens with the native **?** stamp from the file  
 4. **Click the ?** signature area: e-Aadhaar PDF Verifier validates locally and shows a details popup  
 5. Click **OK**: the green **Signature valid** stamp is drawn (canvas overlay only)  
@@ -399,7 +403,7 @@ After `./setup.sh` (or `setup.bat`), run:
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.5**.
+See [CHANGELOG.md](CHANGELOG.md). Latest: **v2.3.6**.
 
 ---
 

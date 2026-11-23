@@ -61,6 +61,8 @@ The suite is hermetic: no network, no real `.venv`, no real Aadhaar.
 - `getDocument` must keep `isEvalSupported: false`. The CSP added in `Handler.end_headers`, which covers every response including `send_error` pages, must keep `script-src`/`style-src` at `'self'`, with no `unsafe-eval`/`unsafe-inline` (`test_pdfjs.py`, `test_http.py`). Together these close CVE-2024-4367, a forged PDF faking the green tick.
 - No inline styles in `app/static/*.js` or `index.html`: no `<style>` blocks, no `style=` attributes, no `setAttribute("style")`. The CSP silently drops them. Use CSSOM (`el.style.x`) or a static stylesheet; the print iframe loads `app/static/print-frame.css` and refuses to print if that file fails to load.
 - Upload `Content-Length` must be `0..20 MiB`; `/api/validate` JSON bodies are capped at 64 KiB.
+- `server.APP_VERSION` is filled into `index.html` (`__APP_VERSION__`) for the header pill and must equal README's "Current release" (`test_http.py`); bump it with README and CHANGELOG at release time.
+- The upload card is a fixed-slot form: the password field and Preview are always in the layout and only enabled/disabled (`setPasswordState` in `viewer.js`); whether a password is needed is detected in the browser with pdf.js before upload. Don't show/hide these elements, it makes the layout jump.
 - Every GET/POST must pass `Handler._host_allowed` (Host name `127.0.0.1` or `localhost`, any port); `test_http.py` covers foreign hosts.
 - Stamp geometry: unrotated pages (every e-Aadhaar) must stay on the original `drawValidityMark` path, which is pixel-identical to the tuned stamp; only rotated pages use `drawRotatedValidityMark`. The `bodyLines` fallback must name the real signer, never UIDAI (`test_pdfjs.py`).
 
@@ -70,4 +72,4 @@ The suite is hermetic: no network, no real `.venv`, no real Aadhaar.
 
 ## Releases
 
-Version lives in the README header line, the README "Changelog" section, and `CHANGELOG.md` (Keep a Changelog format with link refs at the bottom). Update all three together.
+Version lives in four places: the README header line, the README "Changelog" section, `CHANGELOG.md` (Keep a Changelog format with link refs at the bottom) and `APP_VERSION` in `app/server.py` (the header pill). Update all four together; `test_http.py` checks APP_VERSION against the README and the newest CHANGELOG release.

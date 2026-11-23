@@ -117,6 +117,26 @@ class PdfJsVendorTests(unittest.TestCase):
             self.assertIn("position: sticky", block.group(1), selector)
         self.assertRegex(css, r"\.docbar \{[^}]*top: var\(--chrome-h\)")
 
+    def test_form_slots_are_fixed(self) -> None:
+        # Fixed slots: the password field is always present but starts disabled
+        # (enabled only once pdf.js says the PDF needs one), and Preview is
+        # always present but starts disabled; nothing is shown or hidden.
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<input type="password" id="password"[^>]*\bdisabled>')
+        self.assertRegex(html, r'<button type="submit" id="previewBtn"[^>]*\bdisabled>')
+        self.assertNotRegex(html, r'id="(password|previewBtn|passwordField|filePick)"[^>]*\bhidden\b')
+        js = _strip_js_comments((STATIC / "viewer.js").read_text(encoding="utf-8"))
+        self.assertIn('err?.name === "PasswordException"', js)
+
+    def test_upload_form_accessibility(self) -> None:
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(html, r'<input type="password" id="password"[^>]*aria-describedby="passwordHint"')
+        self.assertRegex(html, r'<p id="passwordHint"[^>]*aria-live="polite"')
+        self.assertRegex(html, r'<p id="error"[^>]*role="alert"')
+        # display:none would take the file input out of the tab order.
+        css = (STATIC / "styles.css").read_text(encoding="utf-8")
+        self.assertNotRegex(css, r"\.file input \{[^}]*display:\s*none")
+
     def test_client_upload_cap_matches_server(self) -> None:
         import sys
 

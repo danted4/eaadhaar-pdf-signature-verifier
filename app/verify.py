@@ -171,6 +171,9 @@ def _appearance(field) -> dict:
     return info
 
 
+NOT_A_PDF = "This file isn't a readable PDF."
+
+
 def decrypt_bytes(pdf_bytes: bytes, password: str | None) -> bytes:
     bio = io.BytesIO(pdf_bytes)
     try:
@@ -182,6 +185,10 @@ def decrypt_bytes(pdf_bytes: bytes, password: str | None) -> bytes:
             pdf = pikepdf.open(io.BytesIO(pdf_bytes), password=password)
         except pikepdf.PasswordError:
             raise ValueError("Incorrect password") from None
+    except pikepdf.PdfError:
+        # qpdf's own message names internal objects ("stream <_io.BytesIO
+        # object at 0x...>"); the user only needs to know the file is unusable.
+        raise ValueError(NOT_A_PDF) from None
     out = io.BytesIO()
     pdf.save(out)
     return out.getvalue()
@@ -214,8 +221,18 @@ def _open_reader(pdf_bytes: bytes, password: str | None) -> PdfFileReader:
     reader = PdfFileReader(io.BytesIO(pdf_bytes), strict=False)
     if reader.encrypted:
         if not password:
-            raise ValueError("PDF is password-protected")
+            # Owner-password-only PDFs (permissions, no open password) decrypt
+            # with an empty user password; the viewer doesn't ask for one then.
+            if reader.decrypt("").status == AuthStatus.FAILED:
+                raise ValueError("PDF is password-protected")
+            return reader
         if reader.decrypt(password).status == AuthStatus.FAILED:
+            # An owner-only PDF needs no open password, so a typed one is just
+            # unneeded (pikepdf's decrypt_bytes already ignores it): open it with
+            # the empty password like any reader would, on a fresh reader.
+            fallback = PdfFileReader(io.BytesIO(pdf_bytes), strict=False)
+            if fallback.decrypt("").status != AuthStatus.FAILED:
+                return fallback
             raise ValueError("Incorrect password")
     return reader
 
